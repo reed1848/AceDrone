@@ -28,6 +28,10 @@
 
 #include "DroneController.h"
 
+#define MAX_RX_CONFIG_MSGS 16
+#define MAX_MSG_SIZE 0xFF
+#define PORT_TIMEOUT 10000000 // 100ms timeout
+
 /***************************************************************************************************
 ** droneController_main
 **  The partition's entry point (called on cold and warm start). Creates processes/ports/etc then
@@ -41,5 +45,70 @@
 */
 void droneController_main( void )
 {
+    QUEUING_PORT_NAME_TYPE portName = "ConfigRequestQueuingReceiver";
+    QUEUING_PORT_ID_TYPE port_id;
+    RETURN_CODE_TYPE return_code;
+    MESSAGE_SIZE_TYPE length;
+    uint8_t rxConfigBuffer[MAX_MSG_SIZE];
     scoeAmioEnable();
+
+    // Step 1: Get the Queue Port ID from where to receive messages from
+    GET_QUEUING_PORT_ID (portName, &port_id, &return_code);
+    if (return_code != NO_ERROR)
+    {
+        printf("ERROR: Could not find specified port\n");
+        return -1;
+    }
+    printf("Connected to receive port\n");
+
+    // Step 2: Receive Messages from opened port
+    for (int i = 0; i < MAX_RX_CONFIG_MSGS; i++)
+    {
+        void RECEIVE_QUEUING_MESSAGE (
+            port_id,
+            PORT_TIMEOUT,
+            &rxMSGBuffer,
+            &length,
+            &return_code);
+        if (return_code == NO_ERROR)
+        {
+            proccessRXConfig(rxMSGBuffer, length);
+        }
+        else if (return_code == EMPTY)
+        {
+            break;
+        }
+        else
+        {
+            printf("Error in receiving messages from port/queue");
+            return -1;
+        }
+    }
+
+    /* TODO: Proccess, format, and send configuration response back to OS here */
+
+    SET_PARTITION_MODE( NORMAL, &return_code );
+    if (return_code != NO_ERROR)
+    {
+        printf("ERROR: Could not set parition to NORMAL mode\n");
+        return -1;
+    }
+ 
+} 
+
+/**
+ * Reads the configuration parameters from the OS from the specified port
+ * 
+ * Parameters:
+ *     uint8_t *rxMsg
+ *     MESSAGE_SIZE_TYPE length
+ *      TODO: Add any more params here
+ */
+int proccessRXConfig(uint8_t *rxMsg, MESSAGE_SIZE_TYPE length) 
+{
+    /* TODO: Proccess Message here */
+    printf("Received message %.*s\n", (int)length, rxMsg);
+    return 0;
 }
+
+
