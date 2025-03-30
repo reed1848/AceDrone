@@ -1,0 +1,46 @@
+<ARINC_653_Module xmlns="ARINC653" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <Control_Units>
+    <Control_Unit Identifier="grader_main">
+      <xi:include href="$(SYSTEM_BASE)/Applications/Grader/Grader.xml" />
+    </Control_Unit>
+    <Control_Unit Identifier="droneController_main">
+      <xi:include href="$(SYSTEM_BASE)/Applications/Student/Student.xml" />
+    </Control_Unit>
+  </Control_Units>
+
+  <Partitions>
+    <Standard_Partition PartitionIdentifier="1" PartitionName="Grader" >
+      <Standard_Partition_Parameters>
+        <Control_Unit Identifier="grader_main"/>
+        <Definitions Partition_HM_Table="DefaultPartitionHM" />
+      </Standard_Partition_Parameters>
+    </Standard_Partition>
+    <Standard_Partition PartitionIdentifier="2" PartitionName="Student" >
+      <Standard_Partition_Parameters>
+        <Control_Unit Identifier="droneController_main"/>
+        <Definitions Partition_HM_Table="DefaultPartitionHM" />
+      </Standard_Partition_Parameters>
+    </Standard_Partition>
+  </Partitions>
+
+  <Module_Schedule>
+    <Partition_Schedule ScheduleIdentifier="0">
+      <Window_Schedule PartitionName="Grader" PeriodDurationSeconds="0.5" PartitionPeriodStart="1"/>
+      <Window_Schedule PartitionName="Student" PeriodDurationSeconds="0.5" PartitionPeriodStart="1"/>
+    </Partition_Schedule>
+  </Module_Schedule>
+
+  <Connection_Table>
+    <Channel ChannelIdentifier="1">
+      <Source PartitionName="Grader" PortName="ConfigRequestQueuingSender"/>
+      <Destination PartitionName="Student" PortName="ConfigRequestQueuingReceiver"/>
+    </Channel>
+    <Channel ChannelIdentifier="2">
+      <Source PartitionName="Student" PortName="ConfigResponseQueuingSender"/>
+      <Destination PartitionName="Grader" PortName="ConfigResponseQueuingReceiver"/>
+    </Channel>
+  </Connection_Table>
+
+  <xi:include href="$(SCOE_BASE)/Platforms/$(PLATFORM)/HealthMonitorConfig.xml" />
+</ARINC_653_Module>

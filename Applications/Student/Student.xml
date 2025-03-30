@@ -1,0 +1,8 @@
+<Control_Unit_Parameters xmlns="ARINC653"
+    xmlns:xi="http://www.w3.org/2001/XInclude"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+		<Ports>
+      <Queuing_Port Name="ConfigResponseQueuingSender" Direction="SOURCE" MaxMessageSize="32" MaxNbMessages="20" ProtocolType="RECEIVER_DISCARD"/>
+    	<Queuing_Port Name="ConfigRequestQueuingReceiver" Direction="DESTINATION" MaxMessageSize="64" MaxNbMessages="20" ProtocolType="NOT_APPLICABLE"/>
+		</Ports>
+</Control_Unit_Parameters>
