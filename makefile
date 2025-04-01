@@ -24,7 +24,7 @@ debug: OUTPUTDIR:=$(OUTPUTDIR_DEBUG)
 release debug:
 	-if not exist $(OUTPUTDIR)	$(MKDIR) $(OUTPUTDIR)
 	@echo ***********************************************************
-	$(CP) GraderExecutables\grader_main \
+	$(CP) GraderExecutables\grader_main1 \
 	     $(OUTPUTDIR)\grader_main
 	$(MAKE) -C Applications/Student $@
 	$(CP) Applications\Student\droneController_main \
