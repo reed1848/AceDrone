@@ -50,6 +50,7 @@ ConfigSpec gConfigSpec;
 */
 void droneController_main( void )
 {
+    //set up config receiving port
     QUEUING_PORT_NAME_TYPE portName = "ConfigRequestQueuingReceiver";
     QUEUING_PORT_ID_TYPE port_id;
     RETURN_CODE_TYPE return_code;
@@ -93,8 +94,24 @@ void droneController_main( void )
         }
     }
 
-    /* TODO: Proccess, format, and send configuration response back to OS here */
+    //set up config sending port
+    QUEUING_PORT_NAME_TYPE sedingPortName = "ConfigRequestQueuingReceiver";
+    QUEUING_PORT_ID_TYPE send_port_id;
+    MESSAGE_SIZE_TYPE length;
+    uint8_t txConfigBuffer[MAX_MSG_SIZE];
 
+    // Step 3: Create Queuing Port and send config back to grader application
+    GET_QUEUING_PORT_ID (sedingPortName, &port_id, &return_code);
+    if (return_code != NO_ERROR)
+    {
+        printf("ERROR: Could not find specified sending port\n");
+        return -1;
+    }
+    printf("Connected to sending port\n");
+
+    sendStoredConfigData();
+
+    //Step 4. Set Partition to Normal
     SET_PARTITION_MODE( NORMAL, &return_code );
     if (return_code != NO_ERROR)
     {
@@ -139,4 +156,50 @@ char * copyRxMessage(uint8_t *rxMsg, int length){
     message[length] = '\0';
     return message;
 }
+
+uint8_t * formatTxMessage(char *txMsg){
+    size_t length = strlen(txMsg);
+    uint8_t* txByteMsg = new uint8_t[length];   //want null terminator? length + 1?
+    memcpy(txByteMsg, txMsg, length);
+    return txByteMsg;
+}
+
+
+void sendStoredConfigData(QUEUING_PORT_NAME_TYPE port, QUEUING_PORT_ID_TYPE port_id, MESSAGE_SIZE_TYPE length){
+    uint8_t txConfigBuffer[MAX_MSG_SIZE];
+    RETURN_CODE_TYPE return_code;
+
+    // Send start tag
+    char *start_tag = "Start - ConfigResponse"
+    uint8_t start = formatTxMessage(start_tag);
+    void SEND_QUEUING_MESSAGE (
+        port_id,
+        start_tag,
+        &length,
+        &return_code);
+
+    //send end tag
+
+    char *temp;
+    for (const auto& entry : myMap) {
+        temp += entry.first + ":" + entry.second + "\n";
+        txConfigBuffer = formatTxMessage(temp);
+        void SEND_QUEUING_MESSAGE (
+            port_id,
+            &txMSGBuffer,
+            &length,
+            &return_code);
+    
+    }
+
+    // Send end tag
+    char *end_tag = "End - ConfigResponse"
+    uint8_t start = formatTxMessage(start_tag);
+    void SEND_QUEUING_MESSAGE (
+        port_id,
+        end_tag,
+        &length,
+        &return_code);
+}
+
 
