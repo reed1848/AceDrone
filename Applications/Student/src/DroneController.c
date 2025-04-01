@@ -25,12 +25,17 @@
 #include "apex/apexLib.h"
 
 #include <scoeAMIOEnable.h>
+#include <map>
 
 #include "DroneController.h"
+#include "ConfigValidator.h"
 
 #define MAX_RX_CONFIG_MSGS 16
 #define MAX_MSG_SIZE 0xFF
 #define PORT_TIMEOUT 10000000 // 100ms timeout
+
+std::map<std::string, std::string> gConfigTable;
+ConfigSpec gConfigSpec;
 
 /***************************************************************************************************
 ** droneController_main
@@ -51,6 +56,9 @@ void droneController_main( void )
     MESSAGE_SIZE_TYPE length;
     uint8_t rxConfigBuffer[MAX_MSG_SIZE];
     scoeAmioEnable();
+
+    //init Config Related variables
+    gConfigSpec = init_config_spec();
 
     // Step 1: Get the Queue Port ID from where to receive messages from
     GET_QUEUING_PORT_ID (portName, &port_id, &return_code);
@@ -106,9 +114,29 @@ void droneController_main( void )
  */
 int proccessRXConfig(uint8_t *rxMsg, MESSAGE_SIZE_TYPE length) 
 {
-    /* TODO: Proccess Message here */
+    char **param_id, **value;
+    char *inputConfigLine = copyRxMessage(rxMsg, (int)length);
     printf("Received message %.*s\n", (int)length, rxMsg);
+    //parse message
+    parse_config_message(inputConfigLine, param_id, value);
+    ConfigValue *value = validate_config_message(gConfigSpec, *param_id, *value);
+
+    //store config value
+    if(value->type != INVALID){
+        gConfigTable[*param_id] = std:to_string(*value);
+    }
+
+    //validate message
     return 0;
 }
 
+char * copyRxMessage(uint8_t *rxMsg, int length){
+    char *message = (char*)malloc(length+1);
+    if(message == NULL){
+        return NULL;
+    }
+    memcpy(message, data, length);
+    message[length] = '\0';
+    return message;
+}
 
