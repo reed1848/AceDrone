@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "system_error": "cpp",
-        "cstdint": "cpp"
+        "cstdint": "cpp",
+        "new": "cpp"
     }
 }

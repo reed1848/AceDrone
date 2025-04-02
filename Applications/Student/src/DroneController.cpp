@@ -83,9 +83,9 @@ static void MessagePrinter( void );
 */
 extern "C" void droneController_main( void )
 {
-    RETURN_CODE_TYPE lReturnCode;
+    //RETURN_CODE_TYPE lReturnCode;
     PROCESS_ATTRIBUTE_TYPE lAttributes;
-    PROCESS_ID_TYPE lProcessID;
+    //PROCESS_ID_TYPE lProcessID;
 
     //QUEUING_PORT_ID_TYPE mPortID;
 
@@ -99,32 +99,25 @@ extern "C" void droneController_main( void )
     lAttributes.TIME_CAPACITY = INFINITE_TIME_VALUE;
     lAttributes.DEADLINE = SOFT;
 
-    CREATE_PROCESS( &lAttributes, &lProcessID, &lReturnCode );
-    if ( lReturnCode != NO_ERROR )
-    {
-        printf( "Failed to create process" );
-    }
-
-    START( lProcessID, &lReturnCode );
-    if ( lReturnCode != NO_ERROR )
-    {
-        printf( "Failed to start process" );
-    }
-
-    printf( "NORMAL2\n" );
-    // RETURN_CODE_TYPE lArincReturn;
-    // CREATE_QUEUING_PORT( fQueuingPortName, maxMsgSize + MII_HEADER_SIZE, 20, 
-    //     DESTINATION, FIFO, &mPortID, &lArincReturn );
-    // if ( lArincReturn != NO_ERROR )
+    // CREATE_PROCESS( &lAttributes, &lProcessID, &lReturnCode );
+    // if ( lReturnCode != NO_ERROR )
     // {
-    //     static APEX_BYTE sErrorMessage[] = "Failed to create queuing port";
-    //     RAISE_APPLICATION_ERROR( APPLICATION_ERROR, sErrorMessage, 
-    //         sizeof( sErrorMessage ) - 1, &lArincReturn );
+    //     printf( "Failed to create process" );
+    // }
+
+    // START( lProcessID, &lReturnCode );
+    // if ( lReturnCode != NO_ERROR )
+    // {
+    //     printf( "Failed to start process" );
     // }
 
     fQueuingPrinter = new QueuingPrinter<32>( fQueuingPortName, 20 );
     printf( "NORMAL\n" );
-	SET_PARTITION_MODE( NORMAL, &lReturnCode );
+
+    fQueuingPrinter->printMessage();
+    
+	//SET_PARTITION_MODE( NORMAL, &lReturnCode );
+    printf( "NORMAL3\n" );
     // SET_PARTITION_MODE should not return
     printf( "Failed to set partition to NORMAL" );
 
@@ -151,7 +144,7 @@ extern "C" void droneController_main( void )
 */
 static void MessagePrinter( void )
 {
-    fQueuingPrinter->printMessage();
+    //fQueuingPrinter->printMessage();
     STOP_SELF();
 }
 

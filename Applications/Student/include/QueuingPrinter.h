@@ -32,8 +32,10 @@
 
 template<MESSAGE_SIZE_TYPE MessageContentMaxSize>
 class QueuingPrinter
+
 {
 public:
+    QUEUING_PORT_ID_TYPE mPortID;
     /***********************************************************************************************
     ** QueuingPrinter
     **  Constructs a queuing printer object
@@ -93,21 +95,21 @@ public:
         return;
     }
 
-    size_t parse_config_message(const APEX_BYTE* message, MESSAGE_SIZE_TYPE length) {
-        // Find the position of the colon
-        printf( "%.*s\n", length - MII_HEADER_SIZE, &message[MII_HEADER_SIZE] );
-        std::string str;
-        for (int i = 0; i < length; i++)
-        {
-            str += static_cast<char>(message[i + MII_HEADER_SIZE]);
-            if (message[i] == ':')
-            {
-                printf("%s\n", str);
-                return i - MII_HEADER_SIZE;
-            }
-        }
-        return -1;
-    }
+    // size_t parse_config_message(const APEX_BYTE* message, MESSAGE_SIZE_TYPE length) {
+    //     // Find the position of the colon
+    //     printf( "%.*s\n", length - MII_HEADER_SIZE, &message[MII_HEADER_SIZE] );
+    //     std::string str;
+    //     for (int i = 0; i < length; i++)
+    //     {
+    //         str += static_cast<char>(message[i + MII_HEADER_SIZE]);
+    //         if (message[i] == ':')
+    //         {
+    //             printf("%s\n", str);
+    //             return i - MII_HEADER_SIZE;
+    //         }
+    //     }
+    //     return -1;
+    // }
     
     float fuelUsageRate(std::unordered_map<std::string, float> m)
     {
@@ -130,12 +132,15 @@ public:
      */
     int proccessRXConfig(uint8_t *rxMsg, MESSAGE_SIZE_TYPE length) 
     {
-        //char **param_id, **value;
+        // char **param_id = NULL;
+        // char **value = NULL;
         printf( "%.*s\n", length - MII_HEADER_SIZE, &rxMsg[MII_HEADER_SIZE] );
-        char *inputConfigLine = copyRxMessage(rxMsg, (int)length);
+        
+        char *inputConfigLine = copyRxMessage(rxMsg, length);
         printf("Received message %.*s\n", (int)length, inputConfigLine);
+        free(inputConfigLine);
         //parse message
-        // parse_config_message(inputConfigLine, param_id, value);
+        //parse_config_message(inputConfigLine, param_id, value);
         // ConfigValue *value = validate_config_message(gConfigSpec, *param_id, *value);
 
         // //store config value
@@ -148,15 +153,19 @@ public:
     }
 
     char * copyRxMessage(uint8_t *rxMsg, int length){
-        char *message = (char*)malloc(length+1);
+        printf( "%.*s\n", length - MII_HEADER_SIZE, &rxMsg[MII_HEADER_SIZE] );
+        char *message = (char*)malloc((5+1) * sizeof(char));
         if(message == NULL){
             return NULL;
         }
+        // uint8_t m[5];
+        // memset(m, 't', sizeof(m));
+        printf("%d\n", length - MII_HEADER_SIZE);
+        memcpy(message, &rxMsg[MII_HEADER_SIZE], length - MII_HEADER_SIZE);
+        message[length - MII_HEADER_SIZE] = '\0';
         
-        memcpy(message, rxMsg, length);
-        message[length] = '\0';
         return message;
     }
 private:
-    QUEUING_PORT_ID_TYPE mPortID;
+    
 };
