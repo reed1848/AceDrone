@@ -24,6 +24,7 @@
 #include <cstring>
 #include <unordered_map>
 
+
 #include <apexType.h>
 #include <apexError.h>
 #include <apexQueuing.h>
@@ -38,9 +39,15 @@ ConfigSpec *gConfigSpec;
 template<MESSAGE_SIZE_TYPE MessageContentMaxSize>
 class QueuingPrinter
 
+#define NUM_CONFIG_ITEMS 15
+#define MAX_PARAM_ID_LEN 20
+#define MAX_VALUE_LEN 20
+#define NUM_STRING_VALUES 5 //todo: less messy?
+
 
 {
 public:
+
     QUEUING_PORT_ID_TYPE mPortID;
     std::unordered_map<std::string, std::string> msgValues;
 
@@ -52,13 +59,13 @@ public:
     **  aName - Queuing port name
     **  aQueueSize - Maximum number of messages in the queue
     */
-    QueuingPrinter( QUEUING_PORT_NAME_TYPE aName, MESSAGE_RANGE_TYPE aQueueSize )
+    QueuingPrinter( QUEUING_PORT_NAME_TYPE aName, MESSAGE_RANGE_TYPE aQueueSize, MESSAGE_SIZE_TYPE maxMsgSize)
     {
         gConfigSpec = init_config_spec();
 
         //printf( "NORMAL2\n" );
         RETURN_CODE_TYPE lArincReturn;
-        CREATE_QUEUING_PORT( aName, MessageContentMaxSize + MII_HEADER_SIZE, aQueueSize, 
+        CREATE_QUEUING_PORT( aName, maxMsgSize + MII_HEADER_SIZE, aQueueSize, 
             DESTINATION, FIFO, &mPortID, &lArincReturn );
         if ( lArincReturn != NO_ERROR )
         {
@@ -84,7 +91,7 @@ public:
         //printf( "NORMAL3\n" );
         RETURN_CODE_TYPE lArincReturn;
         MESSAGE_SIZE_TYPE lLength;
-        APEX_BYTE lReceiveBuffer[MessageContentMaxSize + MII_HEADER_SIZE + 1] = {};
+        APEX_BYTE lReceiveBuffer[64 + MII_HEADER_SIZE + 1] = {};
         int i = 0;
 
         while (i < 20){
@@ -102,6 +109,69 @@ public:
             proccessRXConfig(lReceiveBuffer, lLength);
             //size_t colonPos = parse_config_message(lReceiveBuffer, lLength);
             //printf("%d\n", colonPos);
+        }
+        return;
+    }
+
+        /***********************************************************************************************
+    ** sendMessage
+    **  Reads and prints a message from the queuing port
+    **
+    ** Parameters:
+    **  None
+    **
+    ** Returns:
+    **  Nothing
+    */
+   void sendMessage( void )
+    {
+        RETURN_CODE_TYPE lReturnCode;
+        char* lQueuingMessage;
+        // const char* lSamplingMessage = "Hello Sampling!";
+
+        const char* lQueuingMessageStart = "Start - Config Response";
+        const char* lQueuingMessageEnd = "End - Config Response";
+        
+        SEND_QUEUING_MESSAGE( 
+            mPortID,
+            (MESSAGE_ADDR_TYPE) lQueuingMessageStart, 
+            strlen( lQueuingMessageStart ) + 1, 
+            INFINITE_TIME_VALUE,
+            &lReturnCode );
+        if ( lReturnCode != NO_ERROR )
+        {
+            static APEX_BYTE sErrorMessage[] = "Failed to receive queuing message";      
+            RAISE_APPLICATION_ERROR( APPLICATION_ERROR, sErrorMessage, 
+                sizeof( sErrorMessage ) - 1, &lReturnCode );
+        }
+        for (const auto& pair : msgValues)
+        {
+            char m[pair.first.length() + pair.second.length() + 1];
+            sprintf(m, "%s:%s", pair.first, pair.second);
+            SEND_QUEUING_MESSAGE( 
+                mPortID,
+                (MESSAGE_ADDR_TYPE) m, 
+                strlen( lQueuingMessage ) + 1, 
+                INFINITE_TIME_VALUE,
+                &lReturnCode );
+            if ( lReturnCode != NO_ERROR )
+            {
+                static APEX_BYTE sErrorMessage[] = "Failed to receive queuing message";      
+                RAISE_APPLICATION_ERROR( APPLICATION_ERROR, sErrorMessage, 
+                    sizeof( sErrorMessage ) - 1, &lReturnCode );
+            }
+        }
+        SEND_QUEUING_MESSAGE( 
+            mPortID,
+            (MESSAGE_ADDR_TYPE) lQueuingMessageEnd, 
+            strlen( lQueuingMessageEnd ) + 1, 
+            INFINITE_TIME_VALUE,
+            &lReturnCode );
+        if ( lReturnCode != NO_ERROR )
+        {
+            static APEX_BYTE sErrorMessage[] = "Failed to receive queuing message";      
+            RAISE_APPLICATION_ERROR( APPLICATION_ERROR, sErrorMessage, 
+                sizeof( sErrorMessage ) - 1, &lReturnCode );
         }
         return;
     }
