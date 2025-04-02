@@ -50,6 +50,7 @@ public:
 
     QUEUING_PORT_ID_TYPE mPortID;
     std::unordered_map<std::string, std::string> msgValues;
+    bool endTagReceived = false;
 
     /***********************************************************************************************
     ** QueuingPrinter
@@ -67,6 +68,7 @@ public:
         RETURN_CODE_TYPE lArincReturn;
         CREATE_QUEUING_PORT( aName, maxMsgSize + MII_HEADER_SIZE, aQueueSize, 
             DESTINATION, FIFO, &mPortID, &lArincReturn );
+        printf("%i", lArincReturn);
         if ( lArincReturn != NO_ERROR )
         {
             static APEX_BYTE sErrorMessage[] = "Failed to create queuing port";
@@ -94,7 +96,7 @@ public:
         APEX_BYTE lReceiveBuffer[64 + MII_HEADER_SIZE + 1] = {};
         int i = 0;
 
-        while (i < 20){
+        while (i < 20 && !endTagReceived){
             
             RECEIVE_QUEUING_MESSAGE( mPortID, INFINITE_TIME_VALUE, lReceiveBuffer, &lLength, 
                 &lArincReturn );
@@ -253,8 +255,10 @@ public:
             }
 
         }
-        free(copyPtr);
+        else if (*param_id != "End"){
+            bool endTagReceived = false;
 
+        }
         return 0;
     }
 
