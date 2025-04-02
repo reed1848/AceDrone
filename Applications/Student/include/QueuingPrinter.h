@@ -44,6 +44,7 @@ public:
     */
     QueuingPrinter( QUEUING_PORT_NAME_TYPE aName, MESSAGE_RANGE_TYPE aQueueSize )
     {
+        printf( "NORMAL2\n" );
         RETURN_CODE_TYPE lArincReturn;
         CREATE_QUEUING_PORT( aName, MessageContentMaxSize + MII_HEADER_SIZE, aQueueSize, 
             DESTINATION, FIFO, &mPortID, &lArincReturn );
@@ -68,7 +69,7 @@ public:
     */
     void printMessage( void )
     {
-
+        printf( "NORMAL3\n" );
         RETURN_CODE_TYPE lArincReturn;
         MESSAGE_SIZE_TYPE lLength;
         APEX_BYTE lReceiveBuffer[MessageContentMaxSize + MII_HEADER_SIZE + 1] = {};
@@ -85,6 +86,7 @@ public:
                     sizeof( sErrorMessage ) - 1, &lArincReturn );
             }
             printf( "%.*s\n", lLength - MII_HEADER_SIZE, &lReceiveBuffer[MII_HEADER_SIZE] );
+            proccessRXConfig(lReceiveBuffer, lLength);
             //size_t colonPos = parse_config_message(lReceiveBuffer, lLength);
             //printf("%d\n", colonPos);
         }
@@ -116,6 +118,44 @@ public:
         float k = 0.9f;
 
         return (g * (m["Mass"] + (m["Capacity"] * l * t)) * m["Vel"] * d * k)/m["MPG"];
+    }
+
+    /**
+     * Reads the configuration parameters from the OS from the specified port
+     * 
+     * Parameters:
+     *     uint8_t *rxMsg
+     *     MESSAGE_SIZE_TYPE length
+     *      TODO: Add any more params here
+     */
+    int proccessRXConfig(uint8_t *rxMsg, MESSAGE_SIZE_TYPE length) 
+    {
+        //char **param_id, **value;
+        printf( "%.*s\n", length - MII_HEADER_SIZE, &rxMsg[MII_HEADER_SIZE] );
+        char *inputConfigLine = copyRxMessage(rxMsg, (int)length);
+        printf("Received message %.*s\n", (int)length, inputConfigLine);
+        //parse message
+        // parse_config_message(inputConfigLine, param_id, value);
+        // ConfigValue *value = validate_config_message(gConfigSpec, *param_id, *value);
+
+        // //store config value
+        // if(value->type != INVALID){
+        //     gConfigTable[*param_id] = std:to_string(*value);
+        // }
+
+        // //validate message
+        return 0;
+    }
+
+    char * copyRxMessage(uint8_t *rxMsg, int length){
+        char *message = (char*)malloc(length+1);
+        if(message == NULL){
+            return NULL;
+        }
+        
+        memcpy(message, rxMsg, length);
+        message[length] = '\0';
+        return message;
     }
 private:
     QUEUING_PORT_ID_TYPE mPortID;

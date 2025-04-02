@@ -26,6 +26,7 @@
 #include "QueuingPrinter.h"
 
 static QUEUING_PORT_NAME_TYPE fQueuingPortName = "ConfigRequestQueuingReceiver";
+//static MESSAGE_SIZE_TYPE maxMsgSize = 64;
 static QueuingPrinter<32>* fQueuingPrinter;
 
 //static QUEUING_PORT_ID_TYPE fQueuingPort;
@@ -66,6 +67,8 @@ static QueuingPrinter<32>* fQueuingPrinter;
 */
 static void MessagePrinter( void );
 
+// template<MESSAGE_SIZE_TYPE MessageContentMaxSize>
+
 
 /***************************************************************************************************
 ** MessagePrinterCpp
@@ -83,6 +86,8 @@ extern "C" void droneController_main( void )
     RETURN_CODE_TYPE lReturnCode;
     PROCESS_ATTRIBUTE_TYPE lAttributes;
     PROCESS_ID_TYPE lProcessID;
+
+    //QUEUING_PORT_ID_TYPE mPortID;
 
     scoeAmioEnable();
     
@@ -105,8 +110,20 @@ extern "C" void droneController_main( void )
     {
         printf( "Failed to start process" );
     }
+
+    printf( "NORMAL2\n" );
+    // RETURN_CODE_TYPE lArincReturn;
+    // CREATE_QUEUING_PORT( fQueuingPortName, maxMsgSize + MII_HEADER_SIZE, 20, 
+    //     DESTINATION, FIFO, &mPortID, &lArincReturn );
+    // if ( lArincReturn != NO_ERROR )
+    // {
+    //     static APEX_BYTE sErrorMessage[] = "Failed to create queuing port";
+    //     RAISE_APPLICATION_ERROR( APPLICATION_ERROR, sErrorMessage, 
+    //         sizeof( sErrorMessage ) - 1, &lArincReturn );
+    // }
+
     fQueuingPrinter = new QueuingPrinter<32>( fQueuingPortName, 20 );
-    
+    printf( "NORMAL\n" );
 	SET_PARTITION_MODE( NORMAL, &lReturnCode );
     // SET_PARTITION_MODE should not return
     printf( "Failed to set partition to NORMAL" );
@@ -137,6 +154,16 @@ static void MessagePrinter( void )
     fQueuingPrinter->printMessage();
     STOP_SELF();
 }
+
+
+
+
+// uint8_t * formatTxMessage(char *txMsg){
+//     size_t length = strlen(txMsg);
+//     uint8_t* txByteMsg = new uint8_t[length];   //want null terminator? length + 1?
+//     memcpy(txByteMsg, txMsg, length);
+//     return txByteMsg;
+// }
 
 // /***************************************************************************************************
 // ** toImage
