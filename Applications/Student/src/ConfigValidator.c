@@ -83,27 +83,22 @@ ConfigValue* validate_config_message(ConfigSpec* spec, char* param_id, char* val
     union ValueRange range = itemSpec->valueRange;
     switch (itemSpec->valueType) {
         char *endptr;
-        errno = 0;
         case INTEGER:
             //attempt to cast string to int
             configValue->type = INTEGER;
             int int_value = (int)strtol(value, &endptr, 10);
 
             //error checking
-            if(errno == ERANGE){
-                printf("Over or underflow occurred.");
-
-            }
-            else if(*endptr != '\0'){
+            if(*endptr != '\0'){
                 printf("Invalid characters found string to int cast: %s\n", endptr);
 
             }
             //validity checking
             else if (range.IntegerRange.min < int_value && int_value < range.IntegerRange.max) {
-                configValue->int_value = int_value;
+                configValue->value.int_value = int_value;
             }
             else{
-                configValue->int_value = range.IntegerRange.default_int;
+                configValue->value.int_value = range.IntegerRange.default_int;
             }
             break;
             
@@ -113,30 +108,26 @@ ConfigValue* validate_config_message(ConfigSpec* spec, char* param_id, char* val
             double value_double = strtod(value, &endptr);
 
             //error checking
-            if(errno == ERANGE){
-                printf("Over or underflow occurred.");
-
-            }
-            else if(*endptr != '\0'){
-                configValue->double_value = range.DoubleRange.default_double;
+            if(*endptr != '\0'){
+                configValue->value.double_value = range.DoubleRange.default_double;
 
             }
             //check for conversion errors
             if (endptr == value || *endptr != '\0') {
-                configValue->double_value = range.DoubleRange.default_double;
+                configValue->value.double_value = range.DoubleRange.default_double;
             }
             else if (range.IntegerRange.min < value_double && value_double < range.IntegerRange.max) {
-                configValue->double_value = value_double;
+                configValue->value.double_value = value_double;
             }
             else{
-                configValue->double_value = range.DoubleRange.default_double;
+                configValue->value.double_value = range.DoubleRange.default_double;
             }
             break;
 
         case STRING:
             //Copy string value
             configValue->type = STRING;
-            configValue->str_value = (char *)malloc(MAX_VALUE_LEN * sizeof(char));
+            configValue->value.str_value = (char *)malloc(MAX_VALUE_LEN * sizeof(char));
 
             //search to see if value is valid based on configSpec
             int num_options = sizeof(range.StringRange.values) / sizeof(range.StringRange.values[0]);
@@ -145,14 +136,14 @@ ConfigValue* validate_config_message(ConfigSpec* spec, char* param_id, char* val
                 char *temp = range.StringRange.values[i];
                 int matches = strcmp(value, temp);
                 if(strcmp(value, temp) == 0){
-                    strcpy(configValue->str_value, value);
+                    strcpy(configValue->value.str_value, value);
                     found = true;
                 }
             }
 
             //if not found, set to default
             if(!found){
-                strcpy(configValue->str_value, range.StringRange.default_str);
+                strcpy(configValue->value.str_value, range.StringRange.default_str);
             }
             break;
         default:
@@ -239,13 +230,13 @@ int main(){
         item = validate_config_message(configSpec, param_id, value);
         switch(item->type){
             case STRING:
-                printf("Parsed Parameter %s as String: %s\n", param_id, item->str_value);
+                printf("Parsed Parameter %s as String: %s\n", param_id, item->value.str_value);
                 break;
             case INTEGER:
-                printf("Parsed Parameter %s as String: %i\n", param_id, item->int_value);
+                printf("Parsed Parameter %s as String: %i\n", param_id, item->value.int_value);
                 break;
             case DOUBLE:
-                printf("Parsed Parameter %s as String: %lf\n", param_id, item->double_value);
+                printf("Parsed Parameter %s as String: %lf\n", param_id, item->value.double_value);
                 break;
             default:
                 printf("Parameter %s not parsed correctly\n", param_id);
