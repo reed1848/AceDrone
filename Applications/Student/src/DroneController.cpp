@@ -27,6 +27,7 @@
 #include <scoeAMIOEnable.h>
 
 #include "DroneController.h"
+#include "DistanceCalculator.h"
 
 /***************************************************************************************************
 ** droneController_main
@@ -39,7 +40,28 @@
 ** Returns:
 **   Nothing
 */
+DistanceCalculator::IntialConfig demo_config;
 void droneController_main( void )
 {
     scoeAmioEnable();
+
+    //TODO: Remove after finishing testing
+    demo_config.aRate = 1.0;
+    demo_config.bRate = 0.5;
+    demo_config.eRate = 1.5;
+    demo_config.mRate = 2.0;
+    demo_config.sRate = 2.5;
+    demo_config.c1 = 4;
+    demo_config.c2 = 7;
+    demo_config.maxTime = 10;
+    DistanceCalculator dc(&demo_config);
+    printf("Done init\n");
+
+    int* distancesAstroid = dc.GetDistance(DistanceCalculator::ASTROID_BELT);
+    for (int i = 0; i < NUM_OF_DISTANCES; i++)
+    {
+        printf("Calculated distance %d\n", distancesAstroid[i]);
+    }
+
+
 }

@@ -1,29 +1,31 @@
 /* usrAppInit.c - application main entry point */
-
-extern void ENTRY_POINT ( void );
-extern void StartApplication( void * EntryPoint, int stackSize );
-
+ 
+extern "C" void ENTRY_POINT( void );
+extern "C" void StartApplication( void* EntryPoint, int stackSize );
+ 
 /* globals */
-
+ 
+ 
 /* extern */
-
-extern void sslStubInit (void);
-
+ 
+extern "C" void sslStubInit( void );
+extern void sslCPlusPlusStubInit( void );
+ 
 /******************************************************************************
 *
 * scoeMain - entry point for applications and shared libraries
-*/ 
-
-void scoeMain
-    (
-    void * sslRegisterOrLink,
-    int    sysStartType
-    )
+*/
+ 
+extern "C" void scoeMain
+(
+    void * sslRegisterOrLink __attribute__ ((unused)),
+    int    sysStartType __attribute__ ((unused))
+)
 {
     /* get entry point table for the required SSL and check compatibility */
     sslStubInit();
-
+    sslCPlusPlusStubInit();
+   
     /* Start the application */
-    StartApplication(ENTRY_POINT, 0x0000A000);
+    StartApplication( ( void* ) ENTRY_POINT, 0x0000A000 );
 }
-

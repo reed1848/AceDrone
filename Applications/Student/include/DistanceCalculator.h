@@ -3,6 +3,7 @@
 #define NUM_OF_OBSTACLES 5
 #define NUM_OF_DISTANCES 10
 #include <unordered_map>
+#include <cmath>
 
 class DistanceCalculator {
 public:

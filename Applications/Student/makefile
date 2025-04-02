@@ -17,18 +17,18 @@ include $(SCOE_BASE)/platforms/$(PLATFORM)/platformDefinitions.mak
 TARGET := droneController_main
 APPLICATION_ENTRY_POINT := droneController_main
 
-BB_SIZE                 := -defsym TEXT_SECTION_SIZE=0x10000 \
-                           -defsym DATA_SECTION_SIZE=0x1000 \
-                           -defsym RODATA_SECTION_SIZE=0x1000 \
-                           -defsym BSS_SECTION_SIZE=0x1000 \
-                           -defsym BSS_PERSISTENT_SECTION_SIZE=0x1000 \
-                           -defsym DATA_PERSISTENT_SECTION_SIZE=0x1000
+# BB_SIZE                 := -defsym TEXT_SECTION_SIZE=0x10000 \
+#                            -defsym DATA_SECTION_SIZE=0x1000 \
+#                            -defsym RODATA_SECTION_SIZE=0x1000 \
+#                            -defsym BSS_SECTION_SIZE=0x1000 \
+#                            -defsym BSS_PERSISTENT_SECTION_SIZE=0x1000 \
+#                            -defsym DATA_PERSISTENT_SECTION_SIZE=0x1000
 # OPTIONAL: Program section size limits. Note that these sizes will vary between different
 # architectures and compilers.
 # Remove this and the corresponding linker flag if you're not familiar with this.
 
 CFLAGS_COMMON := -Iinclude -I../Common/include $(CFLAGS_DEFAULT_INCLUDE) -DENTRY_POINT=$(APPLICATION_ENTRY_POINT) \
-	-Wall -Werror -fno-builtin -fno-strict-aliasing -fno-crossjumping -lm
+	-Wall -Werror -fno-builtin -fno-strict-aliasing -fno-crossjumping -std=c++11 -lm
 #   -DENTRY_POINT          Define entry point for usrAppInit.c
 #   -Wall                  Turn on all optional warnings which are desirable for normal code.
 #   -Werror                Treat all warnings as errors
@@ -43,8 +43,8 @@ CFLAGS_RELEASE := $(CFLAGS_COMMON) -O2
 CFLAGS_DEBUG := $(CFLAGS_COMMON) -g
 #   -g                     Generates debugging information
 
-LINK_FLAGS = -lpthread -lrt  $(SSLINTERFACE_LIB_RELEASE) $(AUTOTEST_LIB_RELEASE) \
-	$(MEMORY_WRAPPERS_C) \
+LINK_FLAGS = -lpthread -lrt  $(SSLINTERFACE_LIB_RELEASE) $(SSLINTERFACECPP_LIB_RELEASE)\
+	$(MEMORY_WRAPPERS_CXX) \
 	-Wl,-T $(PLATFORM_LDS)
 # NORMAL FLAGS:
 #   -lpthread              Use threading library (required for SSL Interface Library)
@@ -57,7 +57,8 @@ LINK_FLAGS = -lpthread -lrt  $(SSLINTERFACE_LIB_RELEASE) $(AUTOTEST_LIB_RELEASE)
 #   $(call check_blackbox,BB_SIZE)  Instructs the linker to ensure the output program section
 #                                   sizes are less than or equal to those specified
 
-SOURCE=src/DroneController.c \
+SOURCE=src/DroneController.cpp \
+       src/DistanceCalculator.cpp \
 	   ../Common/src/usrAppInit.c \
        $(MAIN_SOURCE) \
 
@@ -67,10 +68,10 @@ SOURCE=src/DroneController.c \
 all: clean release
 
 release:
-	$(CC) $(CFLAGS_RELEASE) $(LINK_FLAGS) $(SOURCE) -o $(TARGET)
+	$(CXX) $(CFLAGS_RELEASE) $(LINK_FLAGS) $(SOURCE) -o $(TARGET)
 
 debug:
-	$(CC) $(CFLAGS_DEBUG) $(LINK_FLAGS) $(SOURCE) -o $(TARGET)
+	$(CXX) $(CFLAGS_DEBUG) $(LINK_FLAGS) $(SOURCE) -o $(TARGET)
 
 clean:
 	-$(RM) $(RMFLAGS) $(TARGET)

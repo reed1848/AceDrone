@@ -22,6 +22,7 @@ DistanceCalculator::~DistanceCalculator()
         int* array = calculatedObstacleDistance.at((OBSTACLE_TYPE)i);
         delete[] array;
     }
+    calculatedObstacleDistance.clear();
 }
 
 // Public Methods
@@ -61,10 +62,11 @@ void DistanceCalculator::precalculateDistance(int* arrayOfDistances, IntialConfi
             obstacleRate = 0.0;
             break;
     }
+    printf("Obstacle rate: %0.1f. Obstacle Type: %d\n", obstacleRate, obstacleType);
 
     for (int i = 0; i < NUM_OF_DISTANCES; i++)
     {
-        arrayOfDistances[i] = (int) ceilf(fmodf((i * obstacleRate) * (config->c1 / config->c2), config->maxTime));
+        arrayOfDistances[i] = (int) ceilf(fmod(((float)i * obstacleRate) * config->c1 / config->c2, config->maxTime));
     }
 }
 
