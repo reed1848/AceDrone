@@ -17,6 +17,7 @@
 ** authorization (e.g.,License, exemption, NLR, etc.) is strictly prohibited.
 ***************************************************************************************************/
 
+#include <cstring>
 #include <apexType.h>
 #include <apexProcess.h>
 #include <apexPartition.h>
@@ -28,14 +29,27 @@
 #include <map>
 
 #include "DroneController.h"
-#include "ConfigValidator.h"
+#include "../include/ConfigValidator.h"
 
 #define MAX_RX_CONFIG_MSGS 16
 #define MAX_MSG_SIZE 0xFF
 #define PORT_TIMEOUT 10000000 // 100ms timeout
 
+
+#ifndef VALUETYPE_ENUM
+#define VALUETYPE_ENUM
+enum ValueType {
+    INTEGER,
+    DOUBLE,
+    STRING,
+    INVALID
+};
+#endif
+
 std::map<std::string, std::string> gConfigTable;
-ConfigSpec gConfigSpec;
+ConfigSpec *gConfigSpec;
+
+
 
 /***************************************************************************************************
 ** droneController_main
@@ -66,22 +80,22 @@ void droneController_main( void )
     if (return_code != NO_ERROR)
     {
         printf("ERROR: Could not find specified port\n");
-        return -1;
+        //return -1;
     }
     printf("Connected to receive port\n");
 
     // Step 2: Receive Messages from opened port
     for (int i = 0; i < MAX_RX_CONFIG_MSGS; i++)
     {
-        void RECEIVE_QUEUING_MESSAGE (
+        RECEIVE_QUEUING_MESSAGE (
             port_id,
             PORT_TIMEOUT,
-            &rxMSGBuffer,
+            rxConfigBuffer,
             &length,
             &return_code);
         if (return_code == NO_ERROR)
         {
-            proccessRXConfig(rxMSGBuffer, length);
+            proccessRXConfig(rxConfigBuffer, length);
         }
         else if (return_code == EMPTY)
         {
@@ -90,7 +104,7 @@ void droneController_main( void )
         else
         {
             printf("Error in receiving messages from port/queue");
-            return -1;
+            //return -1;
         }
     }
 
@@ -105,11 +119,11 @@ void droneController_main( void )
     if (return_code != NO_ERROR)
     {
         printf("ERROR: Could not find specified sending port\n");
-        return -1;
+        //return -1;
     }
     printf("Connected to sending port\n");
 
-    sendStoredConfigData();
+    sendStoredConfigData(sedingPortName, port_id, length);
 
     //Step 4. Set Partition to Normal
     SET_PARTITION_MODE( NORMAL, &return_code );
@@ -136,11 +150,21 @@ int proccessRXConfig(uint8_t *rxMsg, MESSAGE_SIZE_TYPE length)
     printf("Received message %.*s\n", (int)length, rxMsg);
     //parse message
     parse_config_message(inputConfigLine, param_id, value);
-    ConfigValue *value = validate_config_message(gConfigSpec, *param_id, *value);
+    ConfigValue *configValue = validate_config_message(gConfigSpec, *param_id, *value);
 
     //store config value
-    if(value->type != INVALID){
-        gConfigTable[*param_id] = std:to_string(*value);
+    if(configValue->type != INVALID){
+        switch (configValue->type)
+        {
+        case DOUBLE:
+            gConfigTable[*param_id] = std::to_string(configValue->value.double_value);
+            break;
+        case INTEGER:
+            gConfigTable[*param_id] = std::to_string(configValue->value.int_value);
+            break;
+        default:
+            break;
+        }
     }
 
     //validate message
@@ -152,12 +176,12 @@ char * copyRxMessage(uint8_t *rxMsg, int length){
     if(message == NULL){
         return NULL;
     }
-    memcpy(message, data, length);
+    std::memcpy(message, rxMsg, length);
     message[length] = '\0';
     return message;
 }
 
-uint8_t * formatTxMessage(char *txMsg){
+uint8_t *formatTxMessage(char *txMsg){
     size_t length = strlen(txMsg);
     uint8_t* txByteMsg = new uint8_t[length];   //want null terminator? length + 1?
     memcpy(txByteMsg, txMsg, length);
@@ -166,38 +190,39 @@ uint8_t * formatTxMessage(char *txMsg){
 
 
 void sendStoredConfigData(QUEUING_PORT_NAME_TYPE port, QUEUING_PORT_ID_TYPE port_id, MESSAGE_SIZE_TYPE length){
-    uint8_t txConfigBuffer[MAX_MSG_SIZE];
+    uint8_t *txConfigBuffer; //[MAX_MSG_SIZE];
     RETURN_CODE_TYPE return_code;
 
     // Send start tag
-    char *start_tag = "Start - ConfigResponse"
-    uint8_t start = formatTxMessage(start_tag);
-    void SEND_QUEUING_MESSAGE (
+    char *start_tag = "Start - ConfigResponse";
+    uint8_t *start = formatTxMessage(start_tag);
+    SEND_QUEUING_MESSAGE (
         port_id,
-        start_tag,
-        &length,
-        &return_code);
+        start,
+        length,
+        return_code);
 
     //send end tag
 
-    char *temp;
-    for (const auto& entry : myMap) {
-        temp += entry.first + ":" + entry.second + "\n";
+    char* temp = (char*)malloc(sizeof(char) * MAX_MSG_SIZE);
+    for (const auto& entry : gConfigTable) {
+        std::string temp2 = entry.first + ":" + entry.second + "\n";
+        std::strcpy(temp, temp2.c_str());
         txConfigBuffer = formatTxMessage(temp);
-        void SEND_QUEUING_MESSAGE (
+        SEND_QUEUING_MESSAGE (
             port_id,
-            &txMSGBuffer,
+            &txConfigBuffer,
             &length,
             &return_code);
     
     }
 
     // Send end tag
-    char *end_tag = "End - ConfigResponse"
-    uint8_t start = formatTxMessage(start_tag);
-    void SEND_QUEUING_MESSAGE (
+    char *end_tag = "End - ConfigResponse";
+    uint8_t *end = formatTxMessage(end_tag);
+    SEND_QUEUING_MESSAGE (
         port_id,
-        end_tag,
+        end,
         &length,
         &return_code);
 }
