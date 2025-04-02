@@ -22,12 +22,17 @@
 #include <apexPartition.h>
 
 #include <scoeAMIOEnable.h>
-
+#include "DroneController.h"
 #include "QueuingPrinter.h"
 
+// Global Variables
+std::unordered_map<std::string, std::string> msgValues;
 static QUEUING_PORT_NAME_TYPE fQueuingPortName = "ConfigRequestQueuingReceiver";
-//static MESSAGE_SIZE_TYPE maxMsgSize = 64;
-static QueuingPrinter<32>* fQueuingPrinter;
+static QueuingPrinter* fQueuingPrinter;
+static MESSAGE_SIZE_TYPE maxMsgSize = 32;
+
+// Private function declarations:
+static void MessagePrinter( void );
 
 //static QUEUING_PORT_ID_TYPE fQueuingPort;
 
@@ -55,17 +60,8 @@ static QueuingPrinter<32>* fQueuingPrinter;
 */
 //static const char* toImage( RETURN_CODE_TYPE aReturnCode );
 
-/***************************************************************************************************
-** MessagePrinter
-**  ARINC 653 process which receives and prints a queuing and sampling message
-**
-** Parameters:
-**  None
-**
-** Returns:
-**  Nothing
-*/
-static void MessagePrinter( void );
+
+
 
 // template<MESSAGE_SIZE_TYPE MessageContentMaxSize>
 
@@ -111,7 +107,7 @@ extern "C" void droneController_main( void )
     //     printf( "Failed to start process" );
     // }
 
-    fQueuingPrinter = new QueuingPrinter<32>( fQueuingPortName, 20 );
+    fQueuingPrinter = new QueuingPrinter(maxMsgSize, fQueuingPortName, 20);
     printf( "NORMAL\n" );
 
     fQueuingPrinter->printMessage();
@@ -139,8 +135,16 @@ extern "C" void droneController_main( void )
     return;
 }
 
+
 /***************************************************************************************************
 ** MessagePrinter
+**  ARINC 653 process which receives and prints a queuing and sampling message
+**
+** Parameters:
+**  None
+**
+** Returns:
+**  Nothing
 */
 static void MessagePrinter( void )
 {

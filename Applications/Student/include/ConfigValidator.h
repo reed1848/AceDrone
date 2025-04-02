@@ -42,13 +42,13 @@ union ValueRange
 
     struct {
         char values[NUM_STRING_VALUES][MAX_VALUE_LEN];
-        char *default_str;
+        const char *default_str;
     } StringRange;
 };
 
 typedef struct {
     char param_id[MAX_PARAM_ID_LEN];
-    char* unit;
+    const char* unit;
     enum ValueType valueType;
     union ValueRange valueRange;
 } ConfigItem;
@@ -68,9 +68,7 @@ typedef struct {
 } ConfigValue;
 
 ConfigSpec * init_config_spec();
-ConfigValue* validate_config_message(ConfigSpec* spec, char* param_id, char* value);
-void parse_config_message(char* message, char** param_id, char** value);
-char * parse_till_separator(char** message, char separator);
+ConfigValue* validate_config_message(ConfigSpec* spec, const char* param_id, const char* value);
 #ifdef __cplusplus
 }
 #endif

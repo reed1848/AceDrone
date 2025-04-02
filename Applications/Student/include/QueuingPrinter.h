@@ -17,13 +17,14 @@
 ** authorization (e.g.,License, exemption, NLR, etc.) is strictly prohibited. 
 ***************************************************************************************************/
 
+#ifndef QUEUINGPRINTER_H
+#define QUEUINGPRINTER_H
+
 #include <stdio.h>
 #include <cstdio>
 #include <string.h>
 #include <iostream>
 #include <cstring>
-#include <unordered_map>
-
 #include <apexType.h>
 #include <apexError.h>
 #include <apexQueuing.h>
@@ -33,175 +34,27 @@
 extern "C" {
 #include "ConfigValidator.h"
 }
+#include "DroneController.h"
 
-ConfigSpec *gConfigSpec;
-template<MESSAGE_SIZE_TYPE MessageContentMaxSize>
 class QueuingPrinter
-
-
 {
-public:
-    QUEUING_PORT_ID_TYPE mPortID;
-    std::unordered_map<std::string, std::string> msgValues;
+    public:
+        // Public members
+        QUEUING_PORT_ID_TYPE mPortID;
 
-    /***********************************************************************************************
-    ** QueuingPrinter
-    **  Constructs a queuing printer object
-    **
-    ** Parameters:
-    **  aName - Queuing port name
-    **  aQueueSize - Maximum number of messages in the queue
-    */
-    QueuingPrinter( QUEUING_PORT_NAME_TYPE aName, MESSAGE_RANGE_TYPE aQueueSize )
-    {
-        gConfigSpec = init_config_spec();
+        // Constructor
+        QueuingPrinter(MESSAGE_SIZE_TYPE messageSize, QUEUING_PORT_NAME_TYPE aName, MESSAGE_RANGE_TYPE aQueueSize );
 
-        //printf( "NORMAL2\n" );
-        RETURN_CODE_TYPE lArincReturn;
-        CREATE_QUEUING_PORT( aName, MessageContentMaxSize + MII_HEADER_SIZE, aQueueSize, 
-            DESTINATION, FIFO, &mPortID, &lArincReturn );
-        if ( lArincReturn != NO_ERROR )
-        {
-            static APEX_BYTE sErrorMessage[] = "Failed to create queuing port";
-            RAISE_APPLICATION_ERROR( APPLICATION_ERROR, sErrorMessage, 
-                sizeof( sErrorMessage ) - 1, &lArincReturn );
-        }
-        return;
-    }
-    
-    /***********************************************************************************************
-    ** printMessage
-    **  Reads and prints a message from the queuing port
-    **
-    ** Parameters:
-    **  None
-    **
-    ** Returns:
-    **  Nothing
-    */
-    void printMessage( void )
-    {
-        //printf( "NORMAL3\n" );
-        RETURN_CODE_TYPE lArincReturn;
-        MESSAGE_SIZE_TYPE lLength;
-        APEX_BYTE lReceiveBuffer[MessageContentMaxSize + MII_HEADER_SIZE + 1] = {};
-        int i = 0;
-
-        while (i < 20){
-            
-            RECEIVE_QUEUING_MESSAGE( mPortID, INFINITE_TIME_VALUE, lReceiveBuffer, &lLength, 
-                &lArincReturn );
-            
-            if ( lArincReturn != NO_ERROR )
-            {
-                static APEX_BYTE sErrorMessage[] = "Failed to receive queuing message";      
-                RAISE_APPLICATION_ERROR( APPLICATION_ERROR, sErrorMessage, 
-                    sizeof( sErrorMessage ) - 1, &lArincReturn );
-            }
-            //printf( "%.*s\n", lLength - MII_HEADER_SIZE, &lReceiveBuffer[MII_HEADER_SIZE] );
-            proccessRXConfig(lReceiveBuffer, lLength);
-            //size_t colonPos = parse_config_message(lReceiveBuffer, lLength);
-            //printf("%d\n", colonPos);
-        }
-        return;
-    }
-
-    // size_t parse_config_message(const APEX_BYTE* message, MESSAGE_SIZE_TYPE length) {
-    //     // Find the position of the colon
-    //     printf( "%.*s\n", length - MII_HEADER_SIZE, &message[MII_HEADER_SIZE] );
-    //     std::string str;
-    //     for (int i = 0; i < length; i++)
-    //     {
-    //         str += static_cast<char>(message[i + MII_HEADER_SIZE]);
-    //         if (message[i] == ':')
-    //         {
-    //             printf("%s\n", str);
-    //             return i - MII_HEADER_SIZE;
-    //         }
-    //     }
-    //     return -1;
-    // }
-    
-    float fuelUsageRate(std::unordered_map<std::string, float> m)
-    {
-        float g = 0.0314f;
-        float l = 150.0f;
-        float t = 0.0005f;
-        float d = 0.000278f;
-        float k = 0.9f;
-
-        return (g * (m["Mass"] + (m["Capacity"] * l * t)) * m["Vel"] * d * k)/m["MPG"];
-    }
-
-    /**
-     * Reads the configuration parameters from the OS from the specified port
-     * 
-     * Parameters:
-     *     uint8_t *rxMsg
-     *     MESSAGE_SIZE_TYPE length
-     *      TODO: Add any more params here
-     */
-    int proccessRXConfig(uint8_t *rxMsg, MESSAGE_SIZE_TYPE length) 
-    {
-
-        // printf( "%.*s\n", length - MII_HEADER_SIZE, &rxMsg[MII_HEADER_SIZE] );
+        // Public Methods
+        void printMessage( void );
+        float fuelUsageRate(std::unordered_map<std::string, float> m);
+        int proccessRXConfig(uint8_t *rxMsg, MESSAGE_SIZE_TYPE length);
+        // size_t parse_config_message(const APEX_BYTE* message, MESSAGE_SIZE_TYPE length);
+    private:
+        // Private members
+        MESSAGE_SIZE_TYPE messageContentSize;
+        ConfigSpec *gConfigSpec;
         
-        char *inputConfigLine = copyRxMessage(rxMsg, length);
-        char *copyPtr = inputConfigLine;
-        // printf("Received message %.*s\n", (int)length, inputConfigLine);
-        //parse message
-        char *temp = "";
-        char *temp1 = "";
-        char **param_id = &temp;
-        char **value = &temp1;
-        parse_config_message(inputConfigLine, param_id, value);
-        if(*param_id != "Start" && *param_id != "End"){
-            ConfigValue *configValue = validate_config_message(gConfigSpec, *param_id, *value);
-
-            // //store config value
-            // if(value->type != INVALID){
-            //     gConfigTable[*param_id] = std:to_string(*value);
-            // }
-
-            // //validate message
-            printf("Param ID: %s\n", *param_id);
-            printf("value: %s\n", *value);
-            if(configValue->type == STRING){
-                printf("Validated Value: %s\n", configValue->value.str_value);
-                msgValues[*param_id] = configValue->value.str_value;
-
-            }
-            else if(configValue->type == INTEGER){
-                printf("Validated Value: %i\n", configValue->value.int_value);
-                msgValues[*param_id] = std::to_string(configValue->value.int_value);
-
-            }
-            else if(configValue->type == DOUBLE){
-                printf("Validated Value: %d\n", configValue->value.double_value);
-                msgValues[*param_id] = std::to_string(configValue->value.double_value);
-
-            }
-
-        }
-        free(copyPtr);
-
-        return 0;
-    }
-
-    char * copyRxMessage(uint8_t *rxMsg, int length){
-        //printf( "%.*s\n", length - MII_HEADER_SIZE, &rxMsg[MII_HEADER_SIZE] );
-        char *message = (char*)malloc((length) * sizeof(char));
-        if(message == NULL){
-            return NULL;
-        }
-        // uint8_t m[5];
-        // memset(m, 't', sizeof(m));
-        //printf("%d\n", length - MII_HEADER_SIZE);
-        memcpy(message, &rxMsg[MII_HEADER_SIZE], length - MII_HEADER_SIZE);
-        message[length - MII_HEADER_SIZE] = '\0';
-        
-        return message;
-    }
-private:
     
 };
+#endif

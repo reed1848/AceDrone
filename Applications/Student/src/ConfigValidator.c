@@ -55,12 +55,12 @@ ConfigSpec * init_config_spec(){
  * @param opinter to param value
  * @return ConfigValue struct containing the type and a union of its value
  **/
-ConfigValue* validate_config_message(ConfigSpec* spec, char* param_id, char* value) {
+ConfigValue* validate_config_message(ConfigSpec* spec, const char* param_id, const char* value) {
     ConfigValue* configValue = (ConfigValue*)malloc(sizeof(ConfigValue));
 
     // Find matching config spec
     ConfigItem* itemSpec;
-    int i;
+    int i = 0;
     bool found = false;
     while (i < spec->num_items && !found) {
         itemSpec = spec->configItems[i];
@@ -137,7 +137,7 @@ ConfigValue* validate_config_message(ConfigSpec* spec, char* param_id, char* val
             bool found = false;
             for(int i=0; i < num_options; i++){
                 char *temp = range.StringRange.values[i];
-                int matches = strcmp(value, temp);
+                //int matches = strcmp(value, temp);
                 if(strcmp(value, temp) == 0){
                     strcpy(configValue->value.str_value, value);
                     found = true;
@@ -161,58 +161,8 @@ ConfigValue* validate_config_message(ConfigSpec* spec, char* param_id, char* val
 
 }
 
-/*
- * @brief given a singular line of a config input, parses param ID and value
- *          and determines if end of config
- * @param Pointer to pointer of param_id string
- * @param Pointer to pointer of value string
- **/
-void parse_config_message(char* message, char** param_id, char** value) {
-    *param_id = parse_till_separator(&message, ':');
-    *value = parse_till_separator(&message, '\n');
-}
-
-/*
- * @brief given a singular line of a config input and a given separator, returns a 
- *         pointer to the first token up until the first instance of given separator.
- *         Updates message pointer to index of found separator + 1. 
- * @param Pointer to pointer of string to parse
- * @param Char sperator between tokens
- **/
-char * parse_till_separator(char** message, char separator) {
-    char *token;
-
-    // Find the position of the colon
-    const char* colon_pos = strchr(*message, separator);
-    if (colon_pos == NULL) {
-        // Handle error: colon not found
-        token = strdup(*message);
-        *message += strlen(*message);
-        return token;
-    }
-
-    // Calculate lengths of param_id and value
-    size_t token_len = colon_pos - *message;
 
 
-    // Allocate memory for param_id and value
-    token = (char*)malloc((token_len + 1) * sizeof(char));
-
-    if (token == NULL) {
-        // handle error: memory allocation failed
-        free(token);
-        printf("parse_till_separator: Unable to allocate memory");
-        return NULL;
-    }
-
-    // copy the strings into the allocated memory
-    strncpy(token, *message, token_len);
-    token[token_len] = '\0'; // null-terminate the string
-
-    *message += token_len + 1;
-
-    return token;
-}
 
 // //Test code
 // int main(){
