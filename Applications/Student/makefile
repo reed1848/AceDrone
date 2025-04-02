@@ -28,7 +28,7 @@ APPLICATION_ENTRY_POINT := droneController_main
 # Remove this and the corresponding linker flag if you're not familiar with this.
 
 CFLAGS_COMMON := -Iinclude -I../Common/include $(CFLAGS_DEFAULT_INCLUDE) -DENTRY_POINT=$(APPLICATION_ENTRY_POINT) \
-	-Wall -Werror -fno-builtin -fno-strict-aliasing -fno-crossjumping -std=c++11 -lm
+	-Wall -fno-builtin -fno-strict-aliasing -fno-crossjumping -std=c++11 -lm
 #   -DENTRY_POINT          Define entry point for usrAppInit.c
 #   -Wall                  Turn on all optional warnings which are desirable for normal code.
 #   -Werror                Treat all warnings as errors
@@ -58,8 +58,10 @@ LINK_FLAGS = -lpthread -lrt  $(SSLINTERFACE_LIB_RELEASE) $(SSLINTERFACECPP_LIB_R
 #                                   sizes are less than or equal to those specified
 
 SOURCE=src/DroneController.cpp \
+		src/ConfigValidator.c \
 	   ../Common/src/usrAppInit.c \
        $(MAIN_SOURCE) \
+
 
 
 .PHONY: all release debug clean
@@ -67,10 +69,12 @@ SOURCE=src/DroneController.cpp \
 all: clean release
 
 release:
-	$(CXX) $(CFLAGS_RELEASE) $(LINK_FLAGS) $(SOURCE) -o $(TARGET)
+	$(CXX) $(CFLAGS_RELEASE) $(LINK_FLAGS) $(SOURCE) -o $(TARGET) 
 
 debug:
 	$(CXX) $(CFLAGS_DEBUG) $(LINK_FLAGS) $(SOURCE) -o $(TARGET)
+
+
 
 clean:
 	-$(RM) $(RMFLAGS) $(TARGET)

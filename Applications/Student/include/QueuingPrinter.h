@@ -30,12 +30,20 @@
 
 #include <scoeMiiHeader.h>
 
+extern "C" {
+#include "ConfigValidator.h"
+}
+
+ConfigSpec *gConfigSpec;
 template<MESSAGE_SIZE_TYPE MessageContentMaxSize>
 class QueuingPrinter
+
 
 {
 public:
     QUEUING_PORT_ID_TYPE mPortID;
+    std::unordered_map<std::string, std::string> msgValues;
+
     /***********************************************************************************************
     ** QueuingPrinter
     **  Constructs a queuing printer object
@@ -46,7 +54,9 @@ public:
     */
     QueuingPrinter( QUEUING_PORT_NAME_TYPE aName, MESSAGE_RANGE_TYPE aQueueSize )
     {
-        printf( "NORMAL2\n" );
+        gConfigSpec = init_config_spec();
+
+        //printf( "NORMAL2\n" );
         RETURN_CODE_TYPE lArincReturn;
         CREATE_QUEUING_PORT( aName, MessageContentMaxSize + MII_HEADER_SIZE, aQueueSize, 
             DESTINATION, FIFO, &mPortID, &lArincReturn );
@@ -71,11 +81,12 @@ public:
     */
     void printMessage( void )
     {
-        printf( "NORMAL3\n" );
+        //printf( "NORMAL3\n" );
         RETURN_CODE_TYPE lArincReturn;
         MESSAGE_SIZE_TYPE lLength;
         APEX_BYTE lReceiveBuffer[MessageContentMaxSize + MII_HEADER_SIZE + 1] = {};
         int i = 0;
+
         while (i < 20){
             
             RECEIVE_QUEUING_MESSAGE( mPortID, INFINITE_TIME_VALUE, lReceiveBuffer, &lLength, 
@@ -87,7 +98,7 @@ public:
                 RAISE_APPLICATION_ERROR( APPLICATION_ERROR, sErrorMessage, 
                     sizeof( sErrorMessage ) - 1, &lArincReturn );
             }
-            printf( "%.*s\n", lLength - MII_HEADER_SIZE, &lReceiveBuffer[MII_HEADER_SIZE] );
+            //printf( "%.*s\n", lLength - MII_HEADER_SIZE, &lReceiveBuffer[MII_HEADER_SIZE] );
             proccessRXConfig(lReceiveBuffer, lLength);
             //size_t colonPos = parse_config_message(lReceiveBuffer, lLength);
             //printf("%d\n", colonPos);
@@ -132,35 +143,60 @@ public:
      */
     int proccessRXConfig(uint8_t *rxMsg, MESSAGE_SIZE_TYPE length) 
     {
-        // char **param_id = NULL;
-        // char **value = NULL;
-        printf( "%.*s\n", length - MII_HEADER_SIZE, &rxMsg[MII_HEADER_SIZE] );
+
+        // printf( "%.*s\n", length - MII_HEADER_SIZE, &rxMsg[MII_HEADER_SIZE] );
         
         char *inputConfigLine = copyRxMessage(rxMsg, length);
-        printf("Received message %.*s\n", (int)length, inputConfigLine);
-        free(inputConfigLine);
+        char *copyPtr = inputConfigLine;
+        // printf("Received message %.*s\n", (int)length, inputConfigLine);
         //parse message
-        //parse_config_message(inputConfigLine, param_id, value);
-        // ConfigValue *value = validate_config_message(gConfigSpec, *param_id, *value);
+        char *temp = "";
+        char *temp1 = "";
+        char **param_id = &temp;
+        char **value = &temp1;
+        parse_config_message(inputConfigLine, param_id, value);
+        if(*param_id != "Start" && *param_id != "End"){
+            ConfigValue *configValue = validate_config_message(gConfigSpec, *param_id, *value);
 
-        // //store config value
-        // if(value->type != INVALID){
-        //     gConfigTable[*param_id] = std:to_string(*value);
-        // }
+            // //store config value
+            // if(value->type != INVALID){
+            //     gConfigTable[*param_id] = std:to_string(*value);
+            // }
 
-        // //validate message
+            // //validate message
+            printf("Param ID: %s\n", *param_id);
+            printf("value: %s\n", *value);
+            if(configValue->type == STRING){
+                printf("Validated Value: %s\n", configValue->value.str_value);
+                msgValues[*param_id] = configValue->value.str_value;
+
+            }
+            else if(configValue->type == INTEGER){
+                printf("Validated Value: %i\n", configValue->value.int_value);
+                msgValues[*param_id] = std::to_string(configValue->value.int_value);
+
+            }
+            else if(configValue->type == DOUBLE){
+                printf("Validated Value: %d\n", configValue->value.double_value);
+                msgValues[*param_id] = std::to_string(configValue->value.double_value);
+
+            }
+
+        }
+        free(copyPtr);
+
         return 0;
     }
 
     char * copyRxMessage(uint8_t *rxMsg, int length){
-        printf( "%.*s\n", length - MII_HEADER_SIZE, &rxMsg[MII_HEADER_SIZE] );
-        char *message = (char*)malloc((5+1) * sizeof(char));
+        //printf( "%.*s\n", length - MII_HEADER_SIZE, &rxMsg[MII_HEADER_SIZE] );
+        char *message = (char*)malloc((length) * sizeof(char));
         if(message == NULL){
             return NULL;
         }
         // uint8_t m[5];
         // memset(m, 't', sizeof(m));
-        printf("%d\n", length - MII_HEADER_SIZE);
+        //printf("%d\n", length - MII_HEADER_SIZE);
         memcpy(message, &rxMsg[MII_HEADER_SIZE], length - MII_HEADER_SIZE);
         message[length - MII_HEADER_SIZE] = '\0';
         

@@ -6,7 +6,6 @@
 
 #include "../include/ConfigValidator.h"
 
-#define C1_MAX 
 
 /*
 * Array of config items to be copied into instance of config spec upon
@@ -84,11 +83,13 @@ ConfigValue* validate_config_message(ConfigSpec* spec, char* param_id, char* val
     switch (itemSpec->valueType) {
         char *endptr;
         case INTEGER:
+        {
             //attempt to cast string to int
             configValue->type = INTEGER;
             int int_value = (int)strtol(value, &endptr, 10);
 
             //error checking
+
             if(*endptr != '\0'){
                 printf("Invalid characters found string to int cast: %s\n", endptr);
 
@@ -101,8 +102,9 @@ ConfigValue* validate_config_message(ConfigSpec* spec, char* param_id, char* val
                 configValue->value.int_value = range.IntegerRange.default_int;
             }
             break;
-            
+        }
         case DOUBLE:
+        {
             //attempt to cast string to double
             configValue->type = DOUBLE;
             double value_double = strtod(value, &endptr);
@@ -123,8 +125,9 @@ ConfigValue* validate_config_message(ConfigSpec* spec, char* param_id, char* val
                 configValue->value.double_value = range.DoubleRange.default_double;
             }
             break;
-
+        }
         case STRING:
+        {
             //Copy string value
             configValue->type = STRING;
             configValue->value.str_value = (char *)malloc(MAX_VALUE_LEN * sizeof(char));
@@ -146,10 +149,12 @@ ConfigValue* validate_config_message(ConfigSpec* spec, char* param_id, char* val
                 strcpy(configValue->value.str_value, range.StringRange.default_str);
             }
             break;
+        }
         default:
+        {
             configValue->type = INVALID;
             break;
-
+        }
     }
 
     return configValue;
@@ -209,38 +214,38 @@ char * parse_till_separator(char** message, char separator) {
     return token;
 }
 
-// // //Test code
-// // int main(){
-// //     ConfigSpec *configSpec = init_config_spec();
-// //     char *test_lines[] = {"Start:Config", "End:Config", "ID:Bad", "ID:Discovery", "Mass:60", "Mass:80", "Mass:", "Arate:0.3", "Arate: 0.0", "Arate:Bad", "Arate:1.0"};
+// //Test code
+// int main(){
+//     ConfigSpec *configSpec = init_config_spec();
+//     char *test_lines[] = {"Start:Config", "End:Config", "ID:Bad", "ID:Discovery", "Mass:60", "Mass:80", "Mass:", "Arate:0.3", "Arate: 0.0", "Arate:Bad", "Arate:1.0"};
     
-// //     for(int i = 0; i < 11; i++){
-// //         char temp[20], **line;
-// //         strcpy(temp, test_lines[i]);
-// //         line = (char**)malloc(sizeof(char**));
-// //         *line = temp;
+//     for(int i = 0; i < 11; i++){
+//         char temp[20], **line;
+//         strcpy(temp, test_lines[i]);
+//         line = (char**)malloc(sizeof(char**));
+//         *line = temp;
 
-// //         char *param_id = (char*)malloc(sizeof(char*));
-// //         char *value = (char*)malloc(sizeof(char*));
-// //         parse_config_message(*line, &param_id, &value);
-// //         // param_id = parse_till_separator(line, ':');
-// //         // value = parse_till_separator(line, '\n');
+//         char *param_id = (char*)malloc(sizeof(char*));
+//         char *value = (char*)malloc(sizeof(char*));
+//         parse_config_message(*line, &param_id, &value);
+//         // param_id = parse_till_separator(line, ':');
+//         // value = parse_till_separator(line, '\n');
         
-// //         ConfigValue *item = (ConfigValue*)malloc(sizeof(ConfigValue));
-// //         item = validate_config_message(configSpec, param_id, value);
-// //         switch(item->type){
-// //             case STRING:
-// //                 printf("Parsed Parameter %s as String: %s\n", param_id, item->value.str_value);
-// //                 break;
-// //             case INTEGER:
-// //                 printf("Parsed Parameter %s as String: %i\n", param_id, item->value.int_value);
-// //                 break;
-// //             case DOUBLE:
-// //                 printf("Parsed Parameter %s as String: %lf\n", param_id, item->value.double_value);
-// //                 break;
-// //             default:
-// //                 printf("Parameter %s not parsed correctly\n", param_id);
-// //                 break;
-// //         }
-// //     }
-// // }
+//         ConfigValue *item = (ConfigValue*)malloc(sizeof(ConfigValue));
+//         item = validate_config_message(configSpec, param_id, value);
+//         switch(item->type){
+//             case STRING:
+//                 printf("Parsed Parameter %s as String: %s\n", param_id, item->str_value);
+//                 break;
+//             case INTEGER:
+//                 printf("Parsed Parameter %s as String: %i\n", param_id, item->int_value);
+//                 break;
+//             case DOUBLE:
+//                 printf("Parsed Parameter %s as String: %lf\n", param_id, item->double_value);
+//                 break;
+//             default:
+//                 printf("Parameter %s not parsed correctly\n", param_id);
+//                 break;
+//         }
+//     }
+// }
