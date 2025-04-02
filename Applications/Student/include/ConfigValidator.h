@@ -1,5 +1,8 @@
 #ifndef _CONFIGVALIDATOR_H
 #define _CONFIGVALIDATOR_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define NUM_CONFIG_ITEMS 15
 #define MAX_PARAM_ID_LEN 20
@@ -66,5 +69,7 @@ ConfigSpec * init_config_spec();
 ConfigValue* validate_config_message(ConfigSpec* spec, char* param_id, char* value);
 void parse_config_message(char* message, char** param_id, char** value);
 char * parse_till_separator(char** message, char separator);
-
+#ifdef __cplusplus
+}
+#endif
 #endif
