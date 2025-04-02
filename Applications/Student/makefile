@@ -59,6 +59,7 @@ LINK_FLAGS = -lpthread -lrt  $(SSLINTERFACE_LIB_RELEASE) $(SSLINTERFACECPP_LIB_R
 
 SOURCE=src/DroneController.cpp \
 		src/QueuingPrinter.cpp \
+		src/QueuingSender.cpp \
 		src/ConfigValidator.c \
 	   ../Common/src/usrAppInit.c \
        $(MAIN_SOURCE) \

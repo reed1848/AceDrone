@@ -17,8 +17,8 @@
 ** authorization (e.g.,License, exemption, NLR, etc.) is strictly prohibited. 
 ***************************************************************************************************/
 
-#ifndef QUEUINGPRINTER_H
-#define QUEUINGPRINTER_H
+#ifndef QUEUINGSENDER_H
+#define QUEUINGSENDER_H
 
 #include <stdio.h>
 #include <cstdio>
@@ -31,29 +31,21 @@
 
 #include <scoeMiiHeader.h>
 
-extern "C" {
-#include "ConfigValidator.h"
-}
 #include "DroneController.h"
 
-class QueuingPrinter
+class QueuingSender
 {
     public:
         // Public members
         QUEUING_PORT_ID_TYPE mPortID;
 
         // Constructor
-        QueuingPrinter(MESSAGE_SIZE_TYPE messageSize, QUEUING_PORT_NAME_TYPE aName, MESSAGE_RANGE_TYPE aQueueSize );
+        QueuingSender(MESSAGE_SIZE_TYPE messageSize, QUEUING_PORT_NAME_TYPE aName, MESSAGE_RANGE_TYPE aQueueSize );
 
         // Public Methods
-        void printMessage( void );
-        float fuelUsageRate(std::unordered_map<std::string, float> m);
-        int proccessRXConfig(uint8_t *rxMsg, MESSAGE_SIZE_TYPE length);
+        void sendMessage( void );
     private:
         // Private members
         MESSAGE_SIZE_TYPE messageContentSize;
-        ConfigSpec *gConfigSpec;
-        
-    
 };
 #endif
