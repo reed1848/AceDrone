@@ -17,6 +17,8 @@ include $(SCOE_BASE)/platforms/$(PLATFORM)/platformDefinitions.mak
 OUTPUTDIR = A-Course-Bank
 OUTPUTDIR_DEBUG := $(OUTPUTDIR)_Debug
 
+FLAGS := -Wno-write-strings
+
 .PHONY: clean release debug
 
 debug: OUTPUTDIR:=$(OUTPUTDIR_DEBUG)
@@ -26,7 +28,7 @@ release debug:
 	@echo ***********************************************************
 	$(CP) GraderExecutables\grader_main1 \
 	     $(OUTPUTDIR)\grader_main
-	$(MAKE) -C Applications/Student $@
+	$(MAKE) $(FLAGS) -C Applications/Student $@
 	$(CP) Applications\Student\droneController_main \
 	     $(OUTPUTDIR)\droneController_main
 	@echo ***********************************************************
@@ -38,7 +40,7 @@ grader_main1:
 	@echo ***********************************************************
 	$(CP) GraderExecutables\$@ \
 	     $(OUTPUTDIR)\grader_main
-	$(MAKE) -C Applications/Student release
+	$(MAKE) $(FLAGS) -C Applications/Student release
 	$(CP) Applications\Student\droneController_main \
 	     $(OUTPUTDIR)\droneController_main
 	@echo ***********************************************************
@@ -48,9 +50,9 @@ grader_main1:
 grader_main2:
 	-if not exist $(OUTPUTDIR)	$(MKDIR) $(OUTPUTDIR)
 	@echo ***********************************************************
-	$(CP) GraderExecutables\$@ \
+	$(CP) -Wno-write-strings GraderExecutables\$@ \
 	     $(OUTPUTDIR)\grader_main
-	$(MAKE) -C Applications/Student release
+	$(MAKE) $(FLAGS) -C Applications/Student release
 	$(CP) Applications\Student\droneController_main \
 	     $(OUTPUTDIR)\droneController_main
 	@echo ***********************************************************
@@ -62,7 +64,7 @@ grader_main3:
 	@echo ***********************************************************
 	$(CP) GraderExecutables\$@ \
 	     $(OUTPUTDIR)\grader_main
-	$(MAKE) -C Applications/Student release
+	$(MAKE) $(FLAGS) -C Applications/Student release
 	$(CP) Applications\Student\droneController_main \
 	     $(OUTPUTDIR)\droneController_main
 	@echo ***********************************************************
@@ -74,7 +76,7 @@ grader_main4:
 	@echo ***********************************************************
 	$(CP) GraderExecutables\$@ \
 	     $(OUTPUTDIR)\grader_main
-	$(MAKE) -C Applications/Student release
+	$(MAKE) $(FLAGS) -C Applications/Student release
 	$(CP) Applications\Student\droneController_main \
 	     $(OUTPUTDIR)\droneController_main
 	@echo ***********************************************************
@@ -86,7 +88,7 @@ grader_main5:
 	@echo ***********************************************************
 	$(CP) GraderExecutables\$@ \
 	     $(OUTPUTDIR)\grader_main
-	$(MAKE) -C Applications/Student release
+	$(MAKE) $(FLAGS) -C Applications/Student release
 	$(CP) Applications\Student\droneController_main \
 	     $(OUTPUTDIR)\droneController_main
 	@echo ***********************************************************
@@ -98,7 +100,7 @@ grader_main6:
 	@echo ***********************************************************
 	$(CP) GraderExecutables\$@ \
 	     $(OUTPUTDIR)\grader_main
-	$(MAKE) -C Applications/Student release
+	$(MAKE) $(FLAGS) -C Applications/Student release
 	$(CP) Applications\Student\droneController_main \
 	     $(OUTPUTDIR)\droneController_main
 	@echo ***********************************************************
@@ -110,7 +112,7 @@ grader_main7:
 	@echo ***********************************************************
 	$(CP) GraderExecutables\$@ \
 	     $(OUTPUTDIR)\grader_main
-	$(MAKE) -C Applications/Student release
+	$(MAKE) $(FLAGS) -C Applications/Student release
 	$(CP) Applications\Student\droneController_main \
 	     $(OUTPUTDIR)\droneController_main
 	@echo ***********************************************************
@@ -120,4 +122,4 @@ grader_main7:
 clean:
 	-$(RMDIR) $(RMDIR_FLAGS) $(OUTPUTDIR)
 	-$(RMDIR) $(RMDIR_FLAGS) $(OUTPUTDIR_DEBUG)
-	$(MAKE) -C Applications/Student $@
+	$(MAKE) $(FLAGS) -C Applications/Student $@
