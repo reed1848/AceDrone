@@ -26,34 +26,10 @@
 #include "QueuingPrinter.h"
 
 static QUEUING_PORT_NAME_TYPE fQueuingPortName = "ConfigRequestQueuingReceiver";
-//static MESSAGE_SIZE_TYPE maxMsgSize = 64;
+static QUEUING_PORT_NAME_TYPE fQueuingSendPortName = "ConfigResponseQueuingSender";
+
 static QueuingPrinter<32>* fQueuingPrinter;
-
-//static QUEUING_PORT_ID_TYPE fQueuingPort;
-
-/***************************************************************************************************
-** ConfigSender
-**  ARINC 653 process which sends a config message to the other partition
-**
-** Parameters:
-**   None
-**
-** Returns:
-**   Nothing
-*/
-// static void ConfigSender( void );
-
-/***************************************************************************************************
-** toImage
-**  Returns the string representation of the specified return code.
-**
-** Parameters:
-**   aReturnCode - The 653 procedure's return code
-**
-** Returns:
-**   The string representation of aReturnCode
-*/
-//static const char* toImage( RETURN_CODE_TYPE aReturnCode );
+static QueuingPrinter<32>* fQueuingSender;
 
 /***************************************************************************************************
 ** MessagePrinter
@@ -67,27 +43,10 @@ static QueuingPrinter<32>* fQueuingPrinter;
 */
 static void MessagePrinter( void );
 
-// template<MESSAGE_SIZE_TYPE MessageContentMaxSize>
 
-
-/***************************************************************************************************
-** MessagePrinterCpp
-**  The partition's entry point (called on cold and warm start). Creates processes/ports/etc then
-**  transitions to NORMAL mode.
-**
-** Parameters:
-**  None
-**
-** Returns:
-**  Nothing
-*/
 extern "C" void droneController_main( void )
 {
-    //RETURN_CODE_TYPE lReturnCode;
     PROCESS_ATTRIBUTE_TYPE lAttributes;
-    //PROCESS_ID_TYPE lProcessID;
-
-    //QUEUING_PORT_ID_TYPE mPortID;
 
     scoeAmioEnable();
     
@@ -99,42 +58,13 @@ extern "C" void droneController_main( void )
     lAttributes.TIME_CAPACITY = INFINITE_TIME_VALUE;
     lAttributes.DEADLINE = SOFT;
 
-    // CREATE_PROCESS( &lAttributes, &lProcessID, &lReturnCode );
-    // if ( lReturnCode != NO_ERROR )
-    // {
-    //     printf( "Failed to create process" );
-    // }
-
-    // START( lProcessID, &lReturnCode );
-    // if ( lReturnCode != NO_ERROR )
-    // {
-    //     printf( "Failed to start process" );
-    // }
-
-    fQueuingPrinter = new QueuingPrinter<32>( fQueuingPortName, 20 );
-    printf( "NORMAL\n" );
+    fQueuingPrinter = new QueuingPrinter<32>( fQueuingPortName, 20, 64);
+    fQueuingSender = new QueuingPrinter<32>( fQueuingSendPortName, 20, 32);
 
     fQueuingPrinter->printMessage();
-    
-	//SET_PARTITION_MODE( NORMAL, &lReturnCode );
-    printf( "NORMAL3\n" );
-    // SET_PARTITION_MODE should not return
-    printf( "Failed to set partition to NORMAL" );
+    fQueuingSender->sendMessage();
 
-    // CREATE_QUEUING_PORT(
-    //     "ConfigResponseQueuingSender",
-    //     32,
-    //     20,
-    //     SOURCE,
-    //     PRIORITY,
-    //     &fQueuingPort,
-    //     &lReturnCode );
-    // if ( lReturnCode != NO_ERROR )
-    // {
-    //     printf( "Failed to create queuing port: %s", toImage( lReturnCode ) );
-    // }
-
-    printf("Created port\n");
+    printf("Created ports\n");
 
     return;
 }
@@ -147,47 +77,3 @@ static void MessagePrinter( void )
     //fQueuingPrinter->printMessage();
     STOP_SELF();
 }
-
-
-
-
-// uint8_t * formatTxMessage(char *txMsg){
-//     size_t length = strlen(txMsg);
-//     uint8_t* txByteMsg = new uint8_t[length];   //want null terminator? length + 1?
-//     memcpy(txByteMsg, txMsg, length);
-//     return txByteMsg;
-// }
-
-// /***************************************************************************************************
-// ** toImage
-// */
-// static const char* toImage( RETURN_CODE_TYPE aReturnCode )
-// {
-//     const char* lResult = "UNKNOWN";
-//     switch ( aReturnCode )
-//     {
-//     case NO_ERROR:
-//         lResult = "NO_ERROR";
-//         break;
-//     case NO_ACTION:
-//         lResult = "NO_ACTION";
-//         break;
-//     case NOT_AVAILABLE:
-//         lResult = "NOT_AVAILABLE";
-//         break;
-//     case INVALID_PARAM:
-//         lResult = "INVALID_PARAM";
-//         break;
-//     case INVALID_CONFIG:
-//         lResult = "INVALID_CONFIG";
-//         break;
-//     case INVALID_MODE:
-//         lResult = "INVALID_MODE";
-//         break;
-//     case TIMED_OUT:
-//         lResult = "TIMED_OUT";
-//         break;
-//     }
-
-//     return lResult;
-// }
