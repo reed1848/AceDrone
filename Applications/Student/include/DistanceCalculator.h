@@ -4,11 +4,12 @@
 #define NUM_OF_DISTANCES 10
 #include <unordered_map>
 #include <cmath>
+#include <string.h>
 
 class DistanceCalculator {
 public:
     // Public members
-    typedef enum { ASTROID_BELT, MOUNTAIN, SHOOTING_STAR, BLACK_HOLE, EXPLODING_STAR } OBSTACLE_TYPE;  
+    typedef enum { ASTROID_BELT, MOUNTAIN, SHOOTING_STAR, BLACK_HOLE, EXPLODING_STAR, OBSTACLE_ALL} OBSTACLE_TYPE;  
     typedef struct 
     {
         double aRate;
@@ -24,6 +25,7 @@ public:
     DistanceCalculator(IntialConfig* config);
     ~DistanceCalculator();
     int* GetDistance(OBSTACLE_TYPE obstacleType);
+    void convertDistanceEnum(DistanceCalculator::OBSTACLE_TYPE obstacleEnum, char *enumStr);
 
 private:
     std::unordered_map<OBSTACLE_TYPE, int*> calculatedObstacleDistance;

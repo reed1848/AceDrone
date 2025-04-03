@@ -70,3 +70,29 @@ void DistanceCalculator::precalculateDistance(int* arrayOfDistances, IntialConfi
     }
 }
 
+void DistanceCalculator::convertDistanceEnum(DistanceCalculator::OBSTACLE_TYPE obstacleEnum, char *enumStr){
+    switch (obstacleEnum) {
+        case ASTROID_BELT:
+            strcpy(enumStr, "ASTROID_BELT");
+            break;
+        case MOUNTAIN:
+            strcpy(enumStr, "MOUNTAIN");
+            break;
+        case SHOOTING_STAR:
+            strcpy(enumStr, "SHOOTING_STAR");
+            break;
+        case BLACK_HOLE:
+            strcpy(enumStr, "BLACK_HOLE");
+            break;
+        case EXPLODING_STAR:
+            strcpy(enumStr, "EXPLODING_STAR");
+            break;
+        case OBSTACLE_ALL:
+            strcpy(enumStr, "OBSTACLE_ALL");
+            break;
+        default:
+            strcpy(enumStr, "UNKNOWN");
+            break;
+    }
+}
+

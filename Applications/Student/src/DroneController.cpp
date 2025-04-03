@@ -22,6 +22,8 @@
 #include <apexPartition.h>
 #include <stdlib.h>
 #include <scoeAMIOEnable.h>
+#include <sstream>
+#include <string>
 
 #include "DroneController.h"
 #include "QueuingPrinter.h"
@@ -39,7 +41,7 @@ static QueuingSender* fQueuingSender;
 static MESSAGE_SIZE_TYPE maxMsgSize = 32;
 
 static void setInitialDistance(DistanceCalculator::IntialConfig* initialConfig);
-
+static std::string convertArrayToString(const int* arr, size_t size);
 
 
 //static QUEUING_PORT_ID_TYPE fQueuingPort;
@@ -106,6 +108,22 @@ extern "C" void droneController_main( void )
 
    DistanceCalculator dc(&initalDistanceParameters);
 
+   for(int i = 0; i < dc.OBSTACLE_ALL; i++){
+        int *distances = dc.GetDistance((DistanceCalculator::OBSTACLE_TYPE)i);
+        char enumStr[20];
+        dc.convertDistanceEnum((DistanceCalculator::OBSTACLE_TYPE)i, enumStr);
+        printf("Size of Distances:%i\n", sizeof(distances));
+        printf("Length of Distances:%i\n", sizeof(distances)/sizeof(int));
+
+        std::string formatted = convertArrayToString(distances, (size_t)(sizeof(distances)/sizeof(int)));
+        msgValues[enumStr] = formatted;
+   }
+
+
+    for (const auto& pair : msgValues) {
+        std::cout << "Key: " << pair.first << ", Value: " << pair.second << std::endl;
+    }
+
     // TODO: Once info is proccessed correctly, call queuingSender to send response back to grader application and finish!
     
 	SET_PARTITION_MODE( NORMAL, &lArincReturn );
@@ -113,6 +131,22 @@ extern "C" void droneController_main( void )
     printf( "Failed to set partition to NORMAL" );
 
     return;
+}
+
+static std::string convertArrayToString(const int* arr, size_t size) {
+    std::ostringstream oss;
+    printf("%i", size);
+    printf("In Progress: ");
+
+    for (size_t i = 0; i < size; ++i) {
+        printf("%i", arr[i]);
+        if (i != 0) {
+            oss << ", ";
+        }
+        oss << arr[i];
+    }
+    printf("\n%s\n", oss.str());
+    return oss.str();
 }
 
 static void setInitialDistance(DistanceCalculator::IntialConfig* initialConfig)
