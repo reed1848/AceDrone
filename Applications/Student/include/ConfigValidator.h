@@ -7,6 +7,7 @@ extern "C" {
 
 
 #define NUM_CONFIG_ITEMS 15
+#define NUM_COEFFICIENTS 2
 #define MAX_PARAM_ID_LEN 20
 #define MAX_VALUE_LEN 20
 #define NUM_STRING_VALUES 5 //todo: less messy?
@@ -30,14 +31,13 @@ union ValueRange
         int min;
         int max;
         int default_int;
-        int increment;
     } IntegerRange;
 
     struct {
         double min;
         double max;
         double default_double;
-        double increment;
+        int precision;
     } DoubleRange;
 
     struct {
@@ -65,6 +65,7 @@ typedef struct {
         char* str_value;
         double double_value;
     } value;
+    char formated_value[MAX_VALUE_LEN];
 } ConfigValue;
 
 ConfigSpec * init_config_spec();

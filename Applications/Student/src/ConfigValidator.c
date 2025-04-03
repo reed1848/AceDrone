@@ -2,34 +2,68 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 
 
 #include "../include/ConfigValidator.h"
 
-
+#define C1_ID "C1"
+#define C2_ID "C2"
 /*
 * Array of config items to be copied into instance of config spec upon
 *   initialization
+* NOTE: C1 and C2 upper bounds are calculated off of MaxTime value. 
+*       It is ASSUMED the maxtime parameter will be sent first. 
+*       The max is preset to -1 so C1, C2 will be set to default until max
+*       time is sent. After which, the method addCoefficientConfigs must 
+*       be called.
 */
 ConfigItem INIT_CONFIG_SPEC[NUM_CONFIG_ITEMS] = {
     {"ID", "N/A", STRING, {.StringRange = {{"Columbia", "Challenger", "Discovery", "Atlantis", "Endeavour"}, "Columbia"}} },
-    {"Mass", "Tons", INTEGER, {.IntegerRange = {70, 90, 80, 1}} },
-    {"Cap", "N/A", INTEGER, {.IntegerRange = {1, 5, 3, 1}} },
-    {"MaxTime", "Sec", INTEGER, {.IntegerRange = {8, 10, 10, 1}} },
-    {"Fuel", "Gallons", DOUBLE, {.DoubleRange = {500, 1000, 500, 0.1}} },
-    {"Vel", "MPH", INTEGER, {.IntegerRange = {10000, 20000, 20000, 1}} },
-    {"MPG", "MPG", INTEGER, {.IntegerRange = {5, 15, 5, 1}} },
-    {"FuelRate", "Gallons/Sec", DOUBLE, {.DoubleRange = {0.4, 2.8, -1.0, 0.1}} },
-    {"C1", "N/A", INTEGER, {.IntegerRange = {1, -1, 1, 1}} },
-    {"C2", "N/A", INTEGER, {.IntegerRange = {2, -1, 4, 1}} },
-    {"Arate", "N/A", DOUBLE, {.DoubleRange = {0.5, 1.0, 0.9, 0.1}} },
-    {"Brate", "N/A", DOUBLE, {.DoubleRange = {0.5, 1.0, 0.9, 0.1}} },
-    {"Erate", "N/A", DOUBLE, {.DoubleRange = {0.5, 1.0, 0.9, 0.1}} },
-    {"Mrate", "N/A", DOUBLE, {.DoubleRange = {0.5, 1.0, 0.9, 0.1}} },
-    {"Srate", "N/A", DOUBLE, {.DoubleRange = {0.5, 1.0, 0.9, 0.1}} }
+    {"Mass", "Tons", INTEGER, {.IntegerRange = {70, 90, 80}} },
+    {"Cap", "N/A", INTEGER, {.IntegerRange = {1, 5, 3}} },
+    {"MaxTime", "Sec", INTEGER, {.IntegerRange = {8, 10, 10}} },
+    {"Fuel", "Gallons", DOUBLE, {.DoubleRange = {500, 1000, 500, 2}} },
+    {"Vel", "MPH", INTEGER, {.IntegerRange = {10000, 20000, 20000}} },
+    {"MPG", "MPG", INTEGER, {.IntegerRange = {5, 15, 5}} },
+    {"FuelRate", "Gallons/Sec", DOUBLE, {.DoubleRange = {0.4, 2.8, -1.0, 1}} },
+    {"C1", "N/A", INTEGER, {.IntegerRange = {1, -1, 1}} },  
+    {"C2", "N/A", INTEGER, {.IntegerRange = {2, -1, 4}} }, 
+    {"Arate", "N/A", DOUBLE, {.DoubleRange = {0.5, 1.0, 0.9, 1}} },
+    {"Brate", "N/A", DOUBLE, {.DoubleRange = {0.5, 1.0, 0.9, 1}} },
+    {"Erate", "N/A", DOUBLE, {.DoubleRange = {0.5, 1.0, 0.9, 1}} },
+    {"Mrate", "N/A", DOUBLE, {.DoubleRange = {0.5, 1.0, 0.9, 1}} },
+    {"Srate", "N/A", DOUBLE, {.DoubleRange = {0.5, 1.0, 0.9, 1}} }
 
 };
 
+/*
+ *@brief Function iterates through ConfigSpec and updates the allowed max values of C1 and C2
+ *@param Pointer to Config Spec
+ *@param integer representing the provided maxTimeParam input to drone
+**/
+void addCoefficientConfigs(ConfigSpec *spec, int maxTime){
+    // Find matching config spec
+    ConfigItem* itemSpec;
+    int i = 0;
+
+    while (i < spec->num_items) {
+        itemSpec = spec->configItems[i];
+        if (itemSpec != NULL) {
+            if(strcmp(itemSpec->param_id, C1_ID) == 0){
+                spec->configItems[i]->valueRange.IntegerRange.max = floor(maxTime/2);
+                // printf("Updated C1 MAX: %i\n", spec->configItems[i]->valueRange.IntegerRange.max);
+            }
+            else if(strcmp(itemSpec->param_id, C2_ID) == 0){
+                spec->configItems[i]->valueRange.IntegerRange.max = floor(maxTime/2) - 1;
+                // printf("Updated C2 MAX: %i\n", spec->configItems[i]->valueRange.IntegerRange.max);
+
+            }
+        }
+        i++;
+    }
+
+}
 
 /*
  * Initializes and returns an instance of ConfigSpec which stores
@@ -95,12 +129,14 @@ ConfigValue* validate_config_message(ConfigSpec* spec, const char* param_id, con
 
             }
             //validity checking
-            else if (range.IntegerRange.min < int_value && int_value < range.IntegerRange.max) {
+            else if (range.IntegerRange.min <= int_value && int_value <= range.IntegerRange.max) {
                 configValue->value.int_value = int_value;
             }
             else{
                 configValue->value.int_value = range.IntegerRange.default_int;
             }
+
+            sprintf(configValue->formated_value, "%i", configValue->value.int_value);
             break;
         }
         case DOUBLE:
@@ -118,12 +154,16 @@ ConfigValue* validate_config_message(ConfigSpec* spec, const char* param_id, con
             if (endptr == value || *endptr != '\0') {
                 configValue->value.double_value = range.DoubleRange.default_double;
             }
-            else if (range.IntegerRange.min < value_double && value_double < range.IntegerRange.max) {
+            else if (range.DoubleRange.min <= value_double && value_double <= range.DoubleRange.max) {
                 configValue->value.double_value = value_double;
             }
             else{
                 configValue->value.double_value = range.DoubleRange.default_double;
             }
+
+            //store formated double according to config
+            int precision = range.DoubleRange.precision;
+            sprintf(configValue->formated_value, "%.*lf", precision, configValue->value.double_value);
             break;
         }
         case STRING:
@@ -148,6 +188,9 @@ ConfigValue* validate_config_message(ConfigSpec* spec, const char* param_id, con
             if(!found){
                 strcpy(configValue->value.str_value, range.StringRange.default_str);
             }
+
+            //create a copy of formatted value
+            strcpy(configValue->formated_value, configValue->value.str_value);
             break;
         }
         default:
@@ -155,47 +198,14 @@ ConfigValue* validate_config_message(ConfigSpec* spec, const char* param_id, con
             configValue->type = INVALID;
             break;
         }
+
+    }
+
+    //check if param_id was MaxTime
+    if(strcmp(param_id, "MaxTime") == 0){
+        addCoefficientConfigs(spec, configValue->value.int_value);
     }
 
     return configValue;
 
 }
-
-
-
-
-// //Test code
-// int main(){
-//     ConfigSpec *configSpec = init_config_spec();
-//     char *test_lines[] = {"Start:Config", "End:Config", "ID:Bad", "ID:Discovery", "Mass:60", "Mass:80", "Mass:", "Arate:0.3", "Arate: 0.0", "Arate:Bad", "Arate:1.0"};
-    
-//     for(int i = 0; i < 11; i++){
-//         char temp[20], **line;
-//         strcpy(temp, test_lines[i]);
-//         line = (char**)malloc(sizeof(char**));
-//         *line = temp;
-
-//         char *param_id = (char*)malloc(sizeof(char*));
-//         char *value = (char*)malloc(sizeof(char*));
-//         parse_config_message(*line, &param_id, &value);
-//         // param_id = parse_till_separator(line, ':');
-//         // value = parse_till_separator(line, '\n');
-        
-//         ConfigValue *item = (ConfigValue*)malloc(sizeof(ConfigValue));
-//         item = validate_config_message(configSpec, param_id, value);
-//         switch(item->type){
-//             case STRING:
-//                 printf("Parsed Parameter %s as String: %s\n", param_id, item->str_value);
-//                 break;
-//             case INTEGER:
-//                 printf("Parsed Parameter %s as String: %i\n", param_id, item->int_value);
-//                 break;
-//             case DOUBLE:
-//                 printf("Parsed Parameter %s as String: %lf\n", param_id, item->double_value);
-//                 break;
-//             default:
-//                 printf("Parameter %s not parsed correctly\n", param_id);
-//                 break;
-//         }
-//     }
-// }

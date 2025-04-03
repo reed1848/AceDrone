@@ -85,23 +85,9 @@ QueuingPrinter::QueuingPrinter(MESSAGE_SIZE_TYPE messageSize, QUEUING_PORT_NAME_
 
         if((key != "Start") && (key != "End")){
             ConfigValue *configValue = validate_config_message(QueuingPrinter::gConfigSpec, key.c_str(), value.c_str());
+            msgValues[key] = configValue->formated_value;
+            printf("Validated Value: %s:%s\n", key.c_str(), configValue->formated_value);
 
-            // //validate message
-            if(configValue->type == STRING){
-                printf("Validated Value: %s\n", configValue->value.str_value);
-                msgValues[key] = configValue->value.str_value;
-
-            }
-            else if(configValue->type == INTEGER){
-                printf("Validated Value: %i\n", configValue->value.int_value);
-                msgValues[key] = std::to_string(configValue->value.int_value);
-
-            }
-            else if(configValue->type == DOUBLE){
-                printf("Validated Value: %d\n", configValue->value.double_value);
-                msgValues[key] = std::to_string(configValue->value.double_value);
-
-            }
         }
         return 0;
     }
