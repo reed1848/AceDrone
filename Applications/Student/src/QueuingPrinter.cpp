@@ -18,7 +18,7 @@ QueuingPrinter::QueuingPrinter(MESSAGE_SIZE_TYPE messageSize, QUEUING_PORT_NAME_
         DESTINATION, FIFO, &mPortID, &lArincReturn );
     if ( lArincReturn != NO_ERROR )
     {
-        static APEX_BYTE sErrorMessage[] = "Failed to create queuing port";
+        static APEX_BYTE sErrorMessage[] = "Failed to create queuing printer port";
         RAISE_APPLICATION_ERROR( APPLICATION_ERROR, sErrorMessage, 
             sizeof( sErrorMessage ) - 1, &lArincReturn );
     }
@@ -42,8 +42,9 @@ QueuingPrinter::QueuingPrinter(MESSAGE_SIZE_TYPE messageSize, QUEUING_PORT_NAME_
        MESSAGE_SIZE_TYPE lLength;
        APEX_BYTE lReceiveBuffer[QueuingPrinter::messageContentSize + MII_HEADER_SIZE + 1] = {};
        int i = 0;
+       int response = 0;
 
-       while (i < 20)
+       while ((i < 20) && (response == 0))
        {
            
         RECEIVE_QUEUING_MESSAGE( mPortID, INFINITE_TIME_VALUE, lReceiveBuffer, &lLength, 
@@ -55,11 +56,9 @@ QueuingPrinter::QueuingPrinter(MESSAGE_SIZE_TYPE messageSize, QUEUING_PORT_NAME_
                RAISE_APPLICATION_ERROR( APPLICATION_ERROR, sErrorMessage, 
                    sizeof( sErrorMessage ) - 1, &lArincReturn );
            }
-           //printf( "%.*s\n", lLength - MII_HEADER_SIZE, &lReceiveBuffer[MII_HEADER_SIZE] );
-           proccessRXConfig(lReceiveBuffer, lLength);
-           //size_t colonPos = parse_config_message(lReceiveBuffer, lLength);
-           //printf("%d\n", colonPos);
-       }
+           response = proccessRXConfig(lReceiveBuffer, lLength);
+           i++;
+        }
        return;
    }
 
@@ -89,6 +88,13 @@ QueuingPrinter::QueuingPrinter(MESSAGE_SIZE_TYPE messageSize, QUEUING_PORT_NAME_
             printf("Validated Value: %s:%s\n", key.c_str(), configValue->formated_value);
 
         }
+        else
+        {
+            if (key == "End")
+            {
+                return 1;
+            }
+        }
         return 0;
     }
 
@@ -111,19 +117,3 @@ QueuingPrinter::QueuingPrinter(MESSAGE_SIZE_TYPE messageSize, QUEUING_PORT_NAME_
 
         return (g * (m["Mass"] + (m["Capacity"] * l * t)) * m["Vel"] * d * k)/m["MPG"];
     }
-
-     // size_t QueuingPrinter::parse_config_message(const APEX_BYTE* message, MESSAGE_SIZE_TYPE length) {
-    //     // Find the position of the colon
-    //     printf( "%.*s\n", length - MII_HEADER_SIZE, &message[MII_HEADER_SIZE] );
-    //     std::string str;
-    //     for (int i = 0; i < length; i++)
-    //     {
-    //         str += static_cast<char>(message[i + MII_HEADER_SIZE]);
-    //         if (message[i] == ':')
-    //         {
-    //             printf("%s\n", str);
-    //             return i - MII_HEADER_SIZE;
-    //         }
-    //     }
-    //     return -1;
-    // }

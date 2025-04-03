@@ -58,7 +58,9 @@ LINK_FLAGS = -lpthread -lrt  $(SSLINTERFACE_LIB_RELEASE) $(SSLINTERFACECPP_LIB_R
 #                                   sizes are less than or equal to those specified
 
 SOURCE=src/DroneController.cpp \
+        src/DistanceCalculator.cpp \
 		src/QueuingPrinter.cpp \
+		src/QueuingSender.cpp \
 		src/ConfigValidator.c \
 	   ../Common/src/usrAppInit.c \
        $(MAIN_SOURCE) \

@@ -20,19 +20,27 @@
 #include <apexType.h>
 #include <apexProcess.h>
 #include <apexPartition.h>
-
+#include <stdlib.h>
 #include <scoeAMIOEnable.h>
+
 #include "DroneController.h"
 #include "QueuingPrinter.h"
+#include "QueuingSender.h"
+#include "DistanceCalculator.h"
+
+#define MAX_NUM_MSG 20
 
 // Global Variables
 std::unordered_map<std::string, std::string> msgValues;
 static QUEUING_PORT_NAME_TYPE fQueuingPortName = "ConfigRequestQueuingReceiver";
+static QUEUING_PORT_NAME_TYPE fQueuingSendPortName = "ConfigResponseQueuingSender";
 static QueuingPrinter* fQueuingPrinter;
+static QueuingSender* fQueuingSender;
 static MESSAGE_SIZE_TYPE maxMsgSize = 32;
 
-// Private function declarations:
-static void MessagePrinter( void );
+static void setInitialDistance(DistanceCalculator::IntialConfig* initialConfig);
+
+
 
 //static QUEUING_PORT_ID_TYPE fQueuingPort;
 
@@ -77,79 +85,47 @@ static void MessagePrinter( void );
 ** Returns:
 **  Nothing
 */
+DistanceCalculator::IntialConfig initalDistanceParameters;
 extern "C" void droneController_main( void )
 {
-    //RETURN_CODE_TYPE lReturnCode;
-    PROCESS_ATTRIBUTE_TYPE lAttributes;
-    //PROCESS_ID_TYPE lProcessID;
-
-    //QUEUING_PORT_ID_TYPE mPortID;
-
     scoeAmioEnable();
-    
-    strcpy( lAttributes.NAME, "MessagePrinter" );
-    lAttributes.ENTRY_POINT = ( SYSTEM_ADDRESS_TYPE ) MessagePrinter;
-    lAttributes.STACK_SIZE = 0x1000;
-    lAttributes.BASE_PRIORITY = 4;
-    lAttributes.PERIOD = ZERO_TIME_VALUE;
-    lAttributes.TIME_CAPACITY = INFINITE_TIME_VALUE;
-    lAttributes.DEADLINE = SOFT;
 
-    // CREATE_PROCESS( &lAttributes, &lProcessID, &lReturnCode );
-    // if ( lReturnCode != NO_ERROR )
-    // {
-    //     printf( "Failed to create process" );
-    // }
+    RETURN_CODE_TYPE lArincReturn;
 
-    // START( lProcessID, &lReturnCode );
-    // if ( lReturnCode != NO_ERROR )
-    // {
-    //     printf( "Failed to start process" );
-    // }
+    fQueuingPrinter = new QueuingPrinter(maxMsgSize, fQueuingPortName, MAX_NUM_MSG);
+    fQueuingSender = new QueuingSender(maxMsgSize, fQueuingSendPortName, MAX_NUM_MSG);
+    printf( "Ports opened successfully!\n" );
 
-    fQueuingPrinter = new QueuingPrinter(maxMsgSize, fQueuingPortName, 20);
-    printf( "NORMAL\n" );
-
+    // Proccess the incoming messages
     fQueuingPrinter->printMessage();
+
+    printf( "Input messages proccessed successfully\n" );
+
+    // TODO: Call module to calculate distances here (probably fuel rates as well)?
+    setInitialDistance(&initalDistanceParameters);
+
+   DistanceCalculator dc(&initalDistanceParameters);
+
+    // TODO: Once info is proccessed correctly, call queuingSender to send response back to grader application and finish!
     
-	//SET_PARTITION_MODE( NORMAL, &lReturnCode );
-    printf( "NORMAL3\n" );
+	SET_PARTITION_MODE( NORMAL, &lArincReturn );
     // SET_PARTITION_MODE should not return
     printf( "Failed to set partition to NORMAL" );
-
-    // CREATE_QUEUING_PORT(
-    //     "ConfigResponseQueuingSender",
-    //     32,
-    //     20,
-    //     SOURCE,
-    //     PRIORITY,
-    //     &fQueuingPort,
-    //     &lReturnCode );
-    // if ( lReturnCode != NO_ERROR )
-    // {
-    //     printf( "Failed to create queuing port: %s", toImage( lReturnCode ) );
-    // }
-
-    printf("Created port\n");
 
     return;
 }
 
-
-/***************************************************************************************************
-** MessagePrinter
-**  ARINC 653 process which receives and prints a queuing and sampling message
-**
-** Parameters:
-**  None
-**
-** Returns:
-**  Nothing
-*/
-static void MessagePrinter( void )
+static void setInitialDistance(DistanceCalculator::IntialConfig* initialConfig)
 {
-    //fQueuingPrinter->printMessage();
-    STOP_SELF();
+    
+    initialConfig->aRate = strtod(msgValues.at("Arate").c_str(), nullptr);
+    initialConfig->bRate = strtod(msgValues.at("Brate").c_str(), nullptr);
+    initialConfig->eRate = strtod(msgValues.at("Erate").c_str(), nullptr);
+    initialConfig->mRate = strtod(msgValues.at("Mrate").c_str(), nullptr);
+    initialConfig->sRate = strtod(msgValues.at("Srate").c_str(), nullptr);
+    initialConfig->c1 = atoi(msgValues.at("C1").c_str());
+    initialConfig->c2 = atoi(msgValues.at("C2").c_str());
+    initialConfig->maxTime = atoi(msgValues.at("MaxTime").c_str());
 }
 
 
