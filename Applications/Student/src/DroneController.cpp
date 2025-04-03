@@ -20,11 +20,13 @@
 #include <apexType.h>
 #include <apexProcess.h>
 #include <apexPartition.h>
-
+#include <stdlib.h>
 #include <scoeAMIOEnable.h>
+
 #include "DroneController.h"
 #include "QueuingPrinter.h"
 #include "QueuingSender.h"
+#include "DistanceCalculator.h"
 
 #define MAX_NUM_MSG 20
 
@@ -35,6 +37,8 @@ static QUEUING_PORT_NAME_TYPE fQueuingSendPortName = "ConfigResponseQueuingSende
 static QueuingPrinter* fQueuingPrinter;
 static QueuingSender* fQueuingSender;
 static MESSAGE_SIZE_TYPE maxMsgSize = 32;
+
+static void setInitialDistance(DistanceCalculator::IntialConfig* initialConfig);
 
 
 
@@ -81,6 +85,7 @@ static MESSAGE_SIZE_TYPE maxMsgSize = 32;
 ** Returns:
 **  Nothing
 */
+DistanceCalculator::IntialConfig initalDistanceParameters;
 extern "C" void droneController_main( void )
 {
     scoeAmioEnable();
@@ -97,6 +102,9 @@ extern "C" void droneController_main( void )
     printf( "Input messages proccessed successfully\n" );
 
     // TODO: Call module to calculate distances here (probably fuel rates as well)?
+    setInitialDistance(&initalDistanceParameters);
+
+   DistanceCalculator dc(&initalDistanceParameters);
 
     // TODO: Once info is proccessed correctly, call queuingSender to send response back to grader application and finish!
     
@@ -105,6 +113,19 @@ extern "C" void droneController_main( void )
     printf( "Failed to set partition to NORMAL" );
 
     return;
+}
+
+static void setInitialDistance(DistanceCalculator::IntialConfig* initialConfig)
+{
+    
+    initialConfig->aRate = strtod(msgValues.at("Arate").c_str(), nullptr);
+    initialConfig->bRate = strtod(msgValues.at("Brate").c_str(), nullptr);
+    initialConfig->eRate = strtod(msgValues.at("Erate").c_str(), nullptr);
+    initialConfig->mRate = strtod(msgValues.at("Mrate").c_str(), nullptr);
+    initialConfig->sRate = strtod(msgValues.at("Srate").c_str(), nullptr);
+    initialConfig->c1 = atoi(msgValues.at("C1").c_str());
+    initialConfig->c2 = atoi(msgValues.at("C2").c_str());
+    initialConfig->maxTime = atoi(msgValues.at("MaxTime").c_str());
 }
 
 
