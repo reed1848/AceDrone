@@ -17,6 +17,10 @@
 ** authorization (e.g.,License, exemption, NLR, etc.) is strictly prohibited.
 ***************************************************************************************************/
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
 #include <apexType.h>
 #include <apexProcess.h>
 #include <apexPartition.h>
@@ -27,10 +31,17 @@
 #include <scoeAMIOEnable.h>
 
 #include "DroneController.h"
+#include "Utilities.h"
+#include "Parameters.h"
+#include "LookupTable.h"
 
-#define MAX_RX_CONFIG_MSGS 16
-#define MAX_MSG_SIZE 0xFF
-#define PORT_TIMEOUT 10000000 // 100ms timeout
+static QUEUING_PORT_ID_TYPE fConfigRequestQueuingPort;
+static QUEUING_PORT_ID_TYPE fConfigResponseQueuingPort;
+
+int numOfConfigCommands = 0;
+char configCommands[MAX_INPUTS][MAXCONFIGPARAMLENGTH];
+int obstacleTimingLookupTable[NUMOBSTACLETYPES][MAXDISTANCE];
+Drone student;
 
 /***************************************************************************************************
 ** droneController_main
@@ -45,70 +56,131 @@
 */
 void droneController_main( void )
 {
-    QUEUING_PORT_NAME_TYPE portName = "ConfigRequestQueuingReceiver";
-    QUEUING_PORT_ID_TYPE port_id;
-    RETURN_CODE_TYPE return_code;
-    MESSAGE_SIZE_TYPE length;
-    uint8_t rxConfigBuffer[MAX_MSG_SIZE];
+    RETURN_CODE_TYPE lReturnCode;
+    int commandCount;
+
     scoeAmioEnable();
 
-    // Step 1: Get the Queue Port ID from where to receive messages from
-    GET_QUEUING_PORT_ID (portName, &port_id, &return_code);
-    if (return_code != NO_ERROR)
+    /* Initialize Ports */
+    lReturnCode = initalizePorts();
+    if ( lReturnCode != NO_ERROR )
     {
-        printf("ERROR: Could not find specified port\n");
-        return -1;
+        printf( "Failed to initialize ports: %s", toImage( lReturnCode ) );
     }
-    printf("Connected to receive port\n");
 
-    // Step 2: Receive Messages from opened port
-    for (int i = 0; i < MAX_RX_CONFIG_MSGS; i++)
+    // Receive grader's config request
+    commandCount = receiveConfigData();
+    
+    // Set configuration parameters and obstacle lookup table
+    setConfigParameters( &student, configCommands, commandCount );
+    setLookupTable( &student, obstacleTimingLookupTable );
+
+    // Send student config response
+    sendConfigData();
+
+    return;
+}
+
+int receiveConfigData()
+{
+    MESSAGE_SIZE_TYPE lenMsgData = 0;
+    RETURN_CODE_TYPE lReturnCode;
+    int messageCount = 0;
+
+    printf( "----------- Recieving Config Request ----------\n\n" );
+    FOREVER
     {
-        void RECEIVE_QUEUING_MESSAGE (
-            port_id,
-            PORT_TIMEOUT,
-            &rxMSGBuffer,
-            &length,
-            &return_code);
-        if (return_code == NO_ERROR)
+        // Read the message
+        lReturnCode = recvQueuingMsg( fConfigRequestQueuingPort
+                                    , (MESSAGE_ADDR_TYPE) configCommands[messageCount]
+                                    , &lenMsgData );
+
+        // Verify grader config request received correctly
+        if ( lReturnCode != NO_ERROR )
         {
-            proccessRXConfig(rxMSGBuffer, length);
-        }
-        else if (return_code == EMPTY)
-        {
-            break;
+            printf( "Failed to receive config request message: %s\n", toImage( lReturnCode ) );
         }
         else
         {
-            printf("Error in receiving messages from port/queue");
-            return -1;
+            printf( "Received: %s\n", configCommands[messageCount] );
+            messageCount++;
+            if( strcmp( configCommands[messageCount-1], "End:Config" ) == 0 )
+            {
+                printf( "----------- Recieving Config Request ----------\n\n" );
+                return messageCount;
+            }
+        }
+    }
+}
+
+void sendConfigData()
+{
+    RETURN_CODE_TYPE lReturnCode;
+    char *message;
+
+    printf( "---------- Starting Config Response ----------\n\n" );
+
+    // Loop through config response commands
+    for( int i=0; i<MAX_OUTPUTS; i++ )
+    {
+        // set message for config response
+        message = parameterToString( &student, obstacleTimingLookupTable, i );
+
+        //Send config response message
+        SEND_QUEUING_MESSAGE(
+            fConfigResponseQueuingPort,
+            (MESSAGE_ADDR_TYPE) message,
+            strlen( message ) + 1,
+            0,
+            &lReturnCode );
+
+        // Verify config response sent sucessfully
+        if ( lReturnCode != NO_ERROR )
+        {
+            printf( "Failed to send config response message: %s\n", toImage( lReturnCode ) );
+        }
+        else
+        {
+            printf( "Sending: %s\n", message );
         }
     }
 
-    /* TODO: Proccess, format, and send configuration response back to OS here */
-
-    SET_PARTITION_MODE( NORMAL, &return_code );
-    if (return_code != NO_ERROR)
-    {
-        printf("ERROR: Could not set parition to NORMAL mode\n");
-        return -1;
-    }
- 
-} 
-
-/**
- * Reads the configuration parameters from the OS from the specified port
- * 
- * Parameters:
- *     uint8_t *rxMsg
- *     MESSAGE_SIZE_TYPE length
- *      TODO: Add any more params here
- */
-int proccessRXConfig(uint8_t *rxMsg, MESSAGE_SIZE_TYPE length) 
-{
-    /* TODO: Proccess Message here */
-    printf("Received message %.*s\n", (int)length, rxMsg);
-    return 0;
+    printf( "\n---------- Config Response Complete ----------\n\n" );
 }
 
+RETURN_CODE_TYPE initalizePorts()
+{
+    RETURN_CODE_TYPE lReturnCode;
 
+    printf( "--------------- Creating Ports ---------------\n" );
+
+    CREATE_QUEUING_PORT( "ConfigRequestQueuingReceiver"
+						 , 64
+						 , 20
+						 , DESTINATION
+						 , PRIORITY
+						 , &fConfigRequestQueuingPort
+						 , &lReturnCode );
+
+    if ( lReturnCode != NO_ERROR )
+    {
+		    printf( "Failed to create config request queuing receiver port: %s", toImage( lReturnCode ) );
+    }
+    else
+    {
+        CREATE_QUEUING_PORT( "ConfigResponseQueuingSender"
+							 , 32
+							 , 20
+							 , SOURCE
+							 , PRIORITY
+							 , &fConfigResponseQueuingPort
+							 , &lReturnCode );
+        if ( lReturnCode != NO_ERROR )
+        {
+			       printf( "Failed to create config response queuing sender port: %s", toImage( lReturnCode ) );
+        }
+    }
+
+    printf( "--------------- Finished Ports ---------------\n\n" );
+    return lReturnCode;
+}

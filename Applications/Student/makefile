@@ -58,7 +58,10 @@ LINK_FLAGS = -lpthread -lrt  $(SSLINTERFACE_LIB_RELEASE) $(AUTOTEST_LIB_RELEASE)
 #                                   sizes are less than or equal to those specified
 
 SOURCE=src/DroneController.c \
+	   ../Common/src/Utilities.c \
 	   ../Common/src/usrAppInit.c \
+		 ../Common/src/LookupTable.c \
+		 ../Common/src/Parameters.c \
        $(MAIN_SOURCE) \
 
 
