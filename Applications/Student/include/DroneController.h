@@ -5,6 +5,8 @@
 
 int receiveConfigData();
 void sendConfigData();
+void initProcesses();
+void receiveThread();
 RETURN_CODE_TYPE initalizePorts();
 
 #endif

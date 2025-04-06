@@ -35,13 +35,19 @@
 #include "Parameters.h"
 #include "LookupTable.h"
 
+#define RECEIVE_PROCESS_PERIOD 500000000LL
+#define RECEIVE_PROCESS_CAPACITY -1LL
+#define PROCESS_STACK_SIZE 8000
+
 static QUEUING_PORT_ID_TYPE fConfigRequestQueuingPort;
 static QUEUING_PORT_ID_TYPE fConfigResponseQueuingPort;
 
 int numOfConfigCommands = 0;
 char configCommands[MAX_INPUTS][MAXCONFIGPARAMLENGTH];
 int obstacleTimingLookupTable[NUMOBSTACLETYPES][MAXDISTANCE];
+PROCESS_ID_TYPE receiveThreadID;
 Drone student;
+BOOL shutdownFlag = FALSE;
 
 /***************************************************************************************************
 ** droneController_main
@@ -66,6 +72,7 @@ void droneController_main( void )
     if ( lReturnCode != NO_ERROR )
     {
         printf( "Failed to initialize ports: %s", toImage( lReturnCode ) );
+        return;
     }
 
     // Receive grader's config request
@@ -78,7 +85,56 @@ void droneController_main( void )
     // Send student config response
     sendConfigData();
 
+    // Create receiving thread to receive and process incoming messages from grader
+    initProcesses();
+
+    /**************************************************/
+    /* enter NORMAL partition mode to begin operation */
+    /**************************************************/
+    printf( "Entering normal mode ... \n" );
+    SET_PARTITION_MODE ( NORMAL, &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to enter normal mode %s", toImage( lReturnCode ) );
+    }
+
+
     return;
+}
+
+void initProcesses()
+{
+    RETURN_CODE_TYPE lReturnCode;
+    // Create receive thread
+    PROCESS_ATTRIBUTE_TYPE receiveThreadAttr = 
+    {
+        "RECEIVE_THREAD",               /* Name          */
+        receiveThread,                  /* Entry point   */
+        PROCESS_STACK_SIZE,             /* Stack size    */
+        10,                             /* Priority      */
+        RECEIVE_PROCESS_PERIOD,         /* Period        */
+        RECEIVE_PROCESS_CAPACITY,     /* Time capacity */
+        SOFT                            /* Deadline type */ 
+    };
+
+    printf("Creating Receive Thread ...\n");
+    CREATE_PROCESS (
+    &receiveThreadAttr,   /* process attribute */
+    &receiveThreadID, /* process Id        */
+    &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+
+    printf("Starting Receive thread \n");
+    START(receiveThreadID, &lReturnCode);
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to start process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
 }
 
 int receiveConfigData()
@@ -111,6 +167,27 @@ int receiveConfigData()
             }
         }
     }
+}
+
+void receiveThread()
+{
+    RETURN_CODE_TYPE retCode;
+    while (shutdownFlag != TRUE)
+    {
+        /* DO WORK */
+        printf("Doing work ...\n");
+        /************************************/
+        /* Wait till next period expiration */
+        /************************************/
+        PERIODIC_WAIT ( &retCode );
+        if (retCode != NO_ERROR)
+        {
+            printf( "Failed to periodic wait: %s\n", toImage( retCode ) );
+        }
+    }
+    printf("Shutdown flag activated?? ...\n");
+    STOP_SELF();
+
 }
 
 void sendConfigData()
