@@ -40,6 +40,29 @@
       <Source PartitionName="Student" PortName="ConfigResponseQueuingSender"/>
       <Destination PartitionName="Grader" PortName="ConfigResponseQueuingReceiver"/>
     </Channel>
+
+    <Channel ChannelIdentifier="3">
+      <Source PartitionName="Grader" PortName="CommandQueuingSender"/>
+      <Destination PartitionName="Student" PortName="CommandQueuingReceiver"/>
+    </Channel>
+    <Channel ChannelIdentifier="4">
+      <Source PartitionName="Student" PortName="ResponseQueuingSender"/>
+      <Destination PartitionName="Grader" PortName="ResponseQueuingReceiver"/>
+    </Channel>
+
+    <Channel ChannelIdentifier="5">
+      <Source PartitionName="Grader" PortName="IDRequestQueuingSender"/>
+      <Destination PartitionName="Student" PortName="IDRequestQueuingReceiver"/>
+    </Channel>
+    <Channel ChannelIdentifier="6">
+      <Source PartitionName="Student" PortName="IDResponseQueuingSender"/>
+      <Destination PartitionName="Grader" PortName="IDResponseQueuingReceiver"/>
+    </Channel>
+
+    <Channel ChannelIdentifier="7">
+      <Source PartitionName="Student" PortName="HeartbeatQueuingSender"/>
+      <Destination PartitionName="Grader" PortName="HeartbeatQueuingReceiver"/>
+    </Channel>
   </Connection_Table>
 
   <xi:include href="$(SCOE_BASE)/Platforms/$(PLATFORM)/HealthMonitorConfig.xml" />

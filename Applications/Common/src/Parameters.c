@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include "Parameters.h"
-#include "LookupTable.h"
+#include "../include/Parameters.h"
+#include "../include/LookupTable.h"
 
 // Config ID parameters
 const char * configIds[] = { "Start"

@@ -1,9 +1,12 @@
+#ifndef _DRONE_STATE_MACHINE_H
+#define _DRONE_STATE_MACHINE_H
+
 #include "Parameters.h"
 
 #define MAX_OBSTACLE_WARNINGS 5
 
 
-enum Position {
+typedef enum  {
     TopLeft,
     TopCenter,
     TopRight,
@@ -13,23 +16,29 @@ enum Position {
     BottomLeft,
     BottomCenter,
     BottomRight
-};
+}PositionState;
 
-enum HorizontalMovement{
+typedef enum {
     LEFT,
     RIGHT,
-    NONE
-};
+    NO_HORIZONTAL
+}HorizontalMovement;
 
-enum VerticalMovement{
+typedef enum {
     UP,
     DOWN,
-    NONE
-};
+    NO_VERTICAL
+}VerticalMovement;
 
 typedef struct {
-    enum Position position;
+    PositionState position;
 } DroneState;
+
+
+typedef struct {
+    Obstacle obstacle;
+    int distance;
+} ObstacleDistance;
 
 typedef struct  {
     int fuelRequestFlag;
@@ -37,7 +46,8 @@ typedef struct  {
     int counter;
 } request;
 
-typedef struct {
-    enum Obstacle obstacle;
-    int distance;
-} ObstacleDistance;
+DroneState * DroneStateMachine_Init();
+void DroneStateMachine_Avoid_Obstacle(DroneState *sm, Obstacle obstacles[MAX_OBSTACLE_WARNINGS], int num_obstacles);
+
+
+#endif

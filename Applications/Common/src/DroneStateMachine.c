@@ -1,18 +1,34 @@
 
 #include <stdbool.h>
-
+#include <stdio.h>
+#include <stdlib.h>
 #include "../include/DroneStateMachine.h"
+static const char* PositionStateStrings[] = {
+    "TopLeft",
+    "TopCenter",
+    "TopRight",
+    "MiddleLeft",
+    "MiddleCenter",
+    "MiddleRight",
+    "BottomLeft",
+    "BottomCenter",
+    "BottomRight"
+};
 
+static PositionState move_drone(PositionState initPos, HorizontalMovement hm, VerticalMovement vm, bool isDodging);
 
 DroneState * DroneStateMachine_Init(){
-    DroneState *sm = {MiddleCenter};
+    DroneState *sm = (DroneState*)malloc(sizeof(DroneState));
+    sm->position = MiddleCenter;
+    return sm;
 }
-
+ 
 void DroneStateMachine_Avoid_Obstacle(DroneState *sm, Obstacle obstacles[MAX_OBSTACLE_WARNINGS], int num_obstacles){
-    enum Position initPos = sm->position;
-    enum HorizontalMovement hm;
-    enum VerticalMovement vm;
-    bool dodgingAsteroid = false;
+    PositionState initPos = sm->position;
+    HorizontalMovement hm = NO_HORIZONTAL;
+    VerticalMovement vm = NO_VERTICAL;
+    bool isDodging = false;
+    printf("Start Position Drone: %s\n", PositionStateStrings[initPos]);
 
     //iterate through array and determine vertical and horizontal movement
     // to dodge obstacle
@@ -20,22 +36,20 @@ void DroneStateMachine_Avoid_Obstacle(DroneState *sm, Obstacle obstacles[MAX_OBS
         Obstacle obstacle = obstacles[i];
         switch(obstacle){
             case AsteroidBelt:
-                hm = NONE;
-                vm = NONE;
-                dodgingAsteroid = true;
+                hm = NO_HORIZONTAL;
+                vm = NO_VERTICAL;
                 break;
             case Mountain:
-                vm = (vm == DOWN)? NONE: UP;
+                vm = (vm == DOWN)? NO_VERTICAL: UP;
                 break;
             case ShootingStar:
-                vm = (vm == UP)? NONE: DOWN;
+                vm = (vm == UP)? NO_VERTICAL: DOWN;
                 break;
             case BlackHole:
-                hm = (hm == LEFT)? NONE: RIGHT;
+                hm = (hm == LEFT)? NO_HORIZONTAL: RIGHT;
                 break;
             case ExplodingSun:
-                hm = (hm == RIGHT)? NONE: LEFT;
-                hm = LEFT;
+                hm = (hm == RIGHT)? NO_HORIZONTAL: LEFT;
                 break;
             default:
                 printf("ERROR: Unrecognized Obstacle");
@@ -50,12 +64,14 @@ void DroneStateMachine_Avoid_Obstacle(DroneState *sm, Obstacle obstacles[MAX_OBS
 
     // Move drone within boundaries 
     // Avoids obstacles and moves towards center if possible
-    sm->position = move_drone(initPos, hm, vm, dodgingAsteroid);
-
+    isDodging = num_obstacles > 0;
+    printf("HM: %i, VM: %i\n", hm, vm);
+    sm->position = move_drone(initPos, hm, vm, isDodging);
+    printf("Moved Drone: %s\n", PositionStateStrings[sm->position]);
 }
 
-static enum Position move_drone(enum Position initPos, enum HorizontalMovement hm, enum VerticalMovement vm, bool dodgingAsteroid){
-    enum Position endPos = initPos;
+static PositionState move_drone(PositionState initPos, HorizontalMovement hm, VerticalMovement vm, bool isDodging){
+    PositionState endPos = initPos;
 
     // Adjust horizontal boundaries based off of boundaries
     switch(hm){
@@ -103,16 +119,16 @@ static enum Position move_drone(enum Position initPos, enum HorizontalMovement h
                     break;
             }
             break;
-        case NONE:
+        case NO_HORIZONTAL:
             //If not dodging horizontall and no asteroid -> move towards center
-            if(!dodgingAsteroid){
-                if(initPos == BottomRight || BottomLeft){
+            if(!isDodging){
+                if(endPos == BottomRight || endPos == BottomLeft){
                     endPos = BottomCenter;
                 }
-                else if(initPos == MiddleRight || initPos == MiddleLeft){
+                else if(endPos == MiddleRight || endPos == MiddleLeft){
                     endPos = MiddleCenter;
                 }
-                else if(initPos == TopRight || initPos == TopLeft){
+                else if(endPos == TopRight || endPos == TopLeft){
                     endPos = TopCenter;
                 }
             }
@@ -122,9 +138,11 @@ static enum Position move_drone(enum Position initPos, enum HorizontalMovement h
     }
 
     //Adjust vertical movement based on boundaries
+    // NOTE: MUST switch based off endPos so as to not overwrite the horizontal movement
+    //       TODO: REFACTOR TO HAVE MORE CLEAR LOGIC
     switch(vm){
         case UP:
-            switch(initPos){
+            switch(endPos){
                 case MiddleLeft:
                     endPos = TopLeft;
                     break;
@@ -171,16 +189,16 @@ static enum Position move_drone(enum Position initPos, enum HorizontalMovement h
                     break;
             }
             break;
-        case NONE:
+        case NO_VERTICAL:
             //If not dodging horizontall and no asteroid -> move towards center
-            if(!dodgingAsteroid){
-                if(initPos == BottomRight || initPos == TopRight){
+            if(!isDodging){
+                if(endPos == BottomRight || endPos == TopRight){
                     endPos = MiddleRight;
                 }
-                else if(initPos == BottomCenter || initPos == TopCenter){
+                else if(endPos == BottomCenter || endPos == TopCenter){
                     endPos = MiddleCenter;
                 }
-                else if(initPos == BottomLeft || initPos == TopLeft){
+                else if(endPos == BottomLeft || endPos == TopLeft){
                     endPos = MiddleLeft;
                 }
             }
