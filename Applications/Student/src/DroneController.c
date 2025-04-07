@@ -35,18 +35,24 @@
 #include "Parameters.h"
 #include "LookupTable.h"
 
-#define RECEIVE_PROCESS_PERIOD 500000000LL
-#define RECEIVE_PROCESS_CAPACITY -1LL
+#define RECEIVE_PROCESS_PERIOD  500000000LL
+#define RECEIVE_PROCESS_CAPACITY -1
 #define PROCESS_STACK_SIZE 8000
+#define NA -1
+#define MAX_UPDATE_STRING_SIZE 35
 
 static QUEUING_PORT_ID_TYPE fConfigRequestQueuingPort;
 static QUEUING_PORT_ID_TYPE fConfigResponseQueuingPort;
+static QUEUING_PORT_ID_TYPE fCommandQueuingReceiver;
+static QUEUING_PORT_ID_TYPE fResponseQueuingSender;
 
 int numOfConfigCommands = 0;
 char configCommands[MAX_INPUTS][MAXCONFIGPARAMLENGTH];
 int obstacleTimingLookupTable[NUMOBSTACLETYPES][MAXDISTANCE];
+
 PROCESS_ID_TYPE receiveThreadID;
 Drone student;
+IncomingUpdate updateData;
 BOOL shutdownFlag = FALSE;
 
 /***************************************************************************************************
@@ -111,9 +117,9 @@ void initProcesses()
         "RECEIVE_THREAD",               /* Name          */
         receiveThread,                  /* Entry point   */
         PROCESS_STACK_SIZE,             /* Stack size    */
-        10,                             /* Priority      */
+        1,                              /* Priority      */
         RECEIVE_PROCESS_PERIOD,         /* Period        */
-        RECEIVE_PROCESS_CAPACITY,     /* Time capacity */
+        RECEIVE_PROCESS_CAPACITY,       /* Time capacity */
         SOFT                            /* Deadline type */ 
     };
 
@@ -171,19 +177,63 @@ int receiveConfigData()
 
 void receiveThread()
 {
+    updateData.CycleCounter = 0;
     RETURN_CODE_TYPE retCode;
+    MESSAGE_SIZE_TYPE lenMsgData = 0;
+    unsigned char incomingObstacleUpdate[MAX_UPDATE_STRING_SIZE] = {};
+
     while (shutdownFlag != TRUE)
     {
-        /* DO WORK */
-        printf("Doing work ...\n");
+        int messageCounter = 0;
+        /* Read in the string from the receivePort, nonblocking call */
+        retCode = recvQueuingMsg(fCommandQueuingReceiver, incomingObstacleUpdate, &lenMsgData);
+        if (retCode == NO_ERROR)
+        {
+            printf("in decoding string %d with value %s \n", updateData.CycleCounter, incomingObstacleUpdate);
+            /* Reset update data upon successful read */
+            memset(updateData.values, NA, sizeof(updateData.values));
+            /* Parse string and update struct*/
+            while (messageCounter < lenMsgData)
+            {
+                if ((messageCounter == 0) && incomingObstacleUpdate[0] == 'F')
+                {
+                    updateData.FuelRequest = TRUE;
+                }
+                else
+                {
+                    /* Parse the first letter and grab the associated distance */
+                    switch (incomingObstacleUpdate[messageCounter])
+                    {
+                        case 'A':
+                            updateData.AstroidDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        case 'M':
+                            updateData.MountainDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        case 'S':
+                            updateData.StarDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        case 'B':
+                            updateData.BlackHoleDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        case 'E':
+                            updateData.ExplodingSunDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                messageCounter++;
+            }
+
+            /* TODO: Signal State Machine Thread to run and send response back */
+            updateData.CycleCounter += 1;
+        }
+
         /************************************/
         /* Wait till next period expiration */
         /************************************/
         PERIODIC_WAIT ( &retCode );
-        if (retCode != NO_ERROR)
-        {
-            printf( "Failed to periodic wait: %s\n", toImage( retCode ) );
-        }
     }
     printf("Shutdown flag activated?? ...\n");
     STOP_SELF();
@@ -256,6 +306,34 @@ RETURN_CODE_TYPE initalizePorts()
         {
 			       printf( "Failed to create config response queuing sender port: %s", toImage( lReturnCode ) );
         }
+    }
+
+    
+    CREATE_QUEUING_PORT( "CommandQueuingReceiver"
+        , 64
+        , 4
+        , DESTINATION
+        , PRIORITY
+        , &fCommandQueuingReceiver
+        , &lReturnCode );
+
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create CommandQueuingReceiver port: %s", toImage( lReturnCode ) );
+    }
+    else
+    {
+        CREATE_QUEUING_PORT( "ResponseQueuingSender"
+                    , 32
+                    , 4
+                    , SOURCE
+                    , PRIORITY
+                    , &fResponseQueuingSender
+                    , &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create ResponseQueuingSender port: %s", toImage( lReturnCode ) );
+    }
     }
 
     printf( "--------------- Finished Ports ---------------\n\n" );
