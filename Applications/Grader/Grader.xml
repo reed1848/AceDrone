@@ -4,5 +4,13 @@
     <Ports>
         <Queuing_Port Name="ConfigRequestQueuingSender" Direction="SOURCE" MaxMessageSize="32" MaxNbMessages="20" ProtocolType="RECEIVER_DISCARD"/>
         <Queuing_Port Name="ConfigResponseQueuingReceiver" Direction="DESTINATION" MaxMessageSize="64" MaxNbMessages="20" ProtocolType="NOT_APPLICABLE"/>
+
+        <Queuing_Port Name="CommandQueuingSender" Direction="SOURCE" MaxMessageSize="32" MaxNbMessages="4" ProtocolType="RECEIVER_DISCARD"/>
+        <Queuing_Port Name="ResponseQueuingReceiver" Direction="DESTINATION" MaxMessageSize="64" MaxNbMessages="4" ProtocolType="NOT_APPLICABLE"/>
+
+        <Queuing_Port Name="IDRequestQueuingSender" Direction="SOURCE" MaxMessageSize="32" MaxNbMessages="4" ProtocolType="RECEIVER_DISCARD"/>
+        <Queuing_Port Name="IDResponseQueuingReceiver" Direction="DESTINATION" MaxMessageSize="64" MaxNbMessages="4" ProtocolType="NOT_APPLICABLE"/>
+
+        <Queuing_Port Name="HeartbeatQueuingReceiver" Direction="DESTINATION" MaxMessageSize="64" MaxNbMessages="4" ProtocolType="NOT_APPLICABLE"/>
     </Ports>
 </Control_Unit_Parameters>

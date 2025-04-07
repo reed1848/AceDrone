@@ -8,5 +8,8 @@ void sendConfigData();
 void initProcesses();
 void receiveThread();
 RETURN_CODE_TYPE initalizePorts();
+void updateFuel();
+void sendFuelData();
+void sendStateData();
 
 #endif

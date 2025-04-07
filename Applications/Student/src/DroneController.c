@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
+#include <math.h>
 
 #include <apexType.h>
 #include <apexProcess.h>
@@ -41,6 +43,8 @@
 
 static QUEUING_PORT_ID_TYPE fConfigRequestQueuingPort;
 static QUEUING_PORT_ID_TYPE fConfigResponseQueuingPort;
+static QUEUING_PORT_ID_TYPE fResponseQueuingSender;
+static QUEUING_PORT_ID_TYPE fCommandQueuingReceiver;
 
 int numOfConfigCommands = 0;
 char configCommands[MAX_INPUTS][MAXCONFIGPARAMLENGTH];
@@ -48,6 +52,9 @@ int obstacleTimingLookupTable[NUMOBSTACLETYPES][MAXDISTANCE];
 PROCESS_ID_TYPE receiveThreadID;
 Drone student;
 BOOL shutdownFlag = FALSE;
+clock_t startTime;
+double cycles = 0;
+//char *fuelResponseBuffer = NULL;
 
 /***************************************************************************************************
 ** droneController_main
@@ -97,6 +104,7 @@ void droneController_main( void )
     {
         printf( "Failed to enter normal mode %s", toImage( lReturnCode ) );
     }
+    startTime = clock();
 
 
     return;
@@ -104,6 +112,13 @@ void droneController_main( void )
 
 void initProcesses()
 {
+    // fuelResponseBuffer = (char *)malloc(40);
+    // if (fuelResponseBuffer == NULL){
+    //     printf("Memory allocation faield for fuelResponseBuffer\n");
+    // }
+    allocateBuffers();
+    setDroneState(&student, "BottomCenter");
+
     RETURN_CODE_TYPE lReturnCode;
     // Create receive thread
     PROCESS_ATTRIBUTE_TYPE receiveThreadAttr = 
@@ -172,10 +187,14 @@ int receiveConfigData()
 void receiveThread()
 {
     RETURN_CODE_TYPE retCode;
+    updateFuel();
+    sendFuelData();
+    sendStateData();
     while (shutdownFlag != TRUE)
     {
         /* DO WORK */
-        printf("Doing work ...\n");
+        
+        //printf("Doing work ...\n");
         /************************************/
         /* Wait till next period expiration */
         /************************************/
@@ -225,6 +244,66 @@ void sendConfigData()
     printf( "\n---------- Config Response Complete ----------\n\n" );
 }
 
+void sendFuelData()
+{
+    RETURN_CODE_TYPE lReturnCode;
+    char *message;
+
+    printf( "---------- Starting Fuel Response ----------\n\n" );
+    // set message for fuel response
+    message = fuelToString(&student, obstacleTimingLookupTable);
+
+    //Send fuel response message
+    SEND_QUEUING_MESSAGE(
+        fResponseQueuingSender,
+        (MESSAGE_ADDR_TYPE) message,
+        strlen( message ) + 1,
+        0,
+        &lReturnCode );
+
+    // Verify config response sent sucessfully
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to send fuel response message: %s\n", toImage( lReturnCode ) );
+    }
+    else
+    {
+        printf( "Sending: %s\n", message );
+    }
+    
+    printf( "\n---------- Fuel Response Complete ----------\n\n" );
+}
+
+void sendStateData()
+{
+    RETURN_CODE_TYPE lReturnCode;
+    char *message;
+
+    printf( "---------- Starting State Response ----------\n\n" );
+    // set message for State response
+    message = stateToString(&student, obstacleTimingLookupTable);
+
+    //Send fuel response message
+    SEND_QUEUING_MESSAGE(
+        fResponseQueuingSender,
+        (MESSAGE_ADDR_TYPE) message,
+        strlen( message ) + 1,
+        0,
+        &lReturnCode );
+
+    // Verify config response sent sucessfully
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to send state response message: %s\n", toImage( lReturnCode ) );
+    }
+    else
+    {
+        printf( "Sending: %s\n", message );
+    }
+    
+    printf( "\n---------- State Response Complete ----------\n\n" );
+}
+
 RETURN_CODE_TYPE initalizePorts()
 {
     RETURN_CODE_TYPE lReturnCode;
@@ -258,6 +337,46 @@ RETURN_CODE_TYPE initalizePorts()
         }
     }
 
+    CREATE_QUEUING_PORT( "ResponseQueuingSender"
+        , 32
+        , 4
+        , SOURCE
+        , PRIORITY
+        , &fResponseQueuingSender
+        , &lReturnCode );
+
+    if ( lReturnCode != NO_ERROR )
+    {
+    printf( "Failed to create Response request queuing receiver port: %s", toImage( lReturnCode ) );
+    }
+    else
+    {
+    CREATE_QUEUING_PORT( "CommandQueuingReceiver"
+                , 64
+                , 4
+                , DESTINATION
+                , PRIORITY
+                , &fCommandQueuingReceiver
+                , &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+    printf( "Failed to create Command receiver port: %s", toImage( lReturnCode ) );
+    }
+}
+
     printf( "--------------- Finished Ports ---------------\n\n" );
     return lReturnCode;
+}
+
+void updateFuel(){
+    double elapsedTime = 0;
+    clock_t currentTime = clock();
+
+    elapsedTime = ceil(((double)(currentTime - startTime)) / CLOCKS_PER_SEC);
+    if (elapsedTime != cycles)
+    {
+        cycles = elapsedTime;
+        setDroneFuel(&student, student.fuel - (cycles * student.fuelRate));
+    }
+
 }
