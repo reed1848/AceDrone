@@ -252,7 +252,8 @@ void executeThread()
         }
 
         // Run code here
-        printf("Running execute code here: \n");
+        printf("--------------------------------------------------------------------------\n");
+        printf("New Clock Cycle - Execute Thread\n");
 
         addObstaclesToStateMachine();
         incrementStateMachineCycle();
@@ -464,19 +465,27 @@ RETURN_CODE_TYPE initalizePorts()
 
 
 void addObstaclesToStateMachine(){
+    for(int i =0; i < 6;i++){
+        printf("Obstacle %i Distance: %i\n", i, updateData.values[i]);
+    }
     if(updateData.AstroidDistance != NA){
+        printf("Adding Asteroid: %i\n", updateData.AstroidDistance);
         ObstacleHolder_Add_Obstacle(AsteroidBelt, updateData.AstroidDistance);
     }
     if(updateData.BlackHoleDistance != NA){
+        printf("Adding BlackHole: %i\n", updateData.BlackHoleDistance);
         ObstacleHolder_Add_Obstacle(BlackHole, updateData.BlackHoleDistance);
     }
     if(updateData.ExplodingSunDistance != NA){
+        printf("Adding ExplodingSun: %i\n", updateData.ExplodingSunDistance);
         ObstacleHolder_Add_Obstacle(ExplodingSun, updateData.ExplodingSunDistance);
     }
     if(updateData.MountainDistance != NA){
+        printf("Adding Mountain: %i\n", updateData.MountainDistance);
         ObstacleHolder_Add_Obstacle(Mountain, updateData.MountainDistance);
     }
     if(updateData.StarDistance != NA){
+        printf("Adding Star: %i\n", updateData.StarDistance);
         ObstacleHolder_Add_Obstacle(ShootingStar, updateData.StarDistance);
     }
 

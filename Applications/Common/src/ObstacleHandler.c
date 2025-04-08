@@ -57,13 +57,14 @@ void ObstacleHolder_Update_Obstacle_Times(int deltaTime){
         }
     }
 
-    printf("%i obstacles to Dodge:\n", numObstaclesToDodge);
+
+    printf("\n%i obstacles to Dodge:\n", numObstaclesToDodge);
     for(int i=0; i< numObstaclesToDodge; i ++){
         printf("%s\n", ObstacleStrings[ obstaclesToDodge[i]]);
     }
     DroneStateMachine_Avoid_Obstacle(droneState, obstaclesToDodge, numObstaclesToDodge);
-    printf("Position: is %i\n", droneState->position);
-    printf("Position: is %s\n", PositionStateStrings[ droneState->position ]);
+    // printf("Position: is %i\n", droneState->position);
+    // printf("Position: is %s\n", PositionStateStrings[ droneState->position ]);
 }
 
 void ObstacleHolder_Get_Position_Str(char *positionString){

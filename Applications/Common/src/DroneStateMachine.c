@@ -65,7 +65,7 @@ void DroneStateMachine_Avoid_Obstacle(DroneState *sm, Obstacle obstacles[MAX_OBS
     // Move drone within boundaries 
     // Avoids obstacles and moves towards center if possible
     isDodging = num_obstacles > 0;
-    printf("HM: %i, VM: %i\n", hm, vm);
+    // printf("HM: %i, VM: %i\n", hm, vm);
     sm->position = move_drone(initPos, hm, vm, isDodging);
     printf("Moved Drone: %s\n", PositionStateStrings[sm->position]);
 }
