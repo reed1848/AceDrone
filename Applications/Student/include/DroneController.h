@@ -7,6 +7,7 @@ int receiveConfigData();
 void sendConfigData();
 void initProcesses();
 void receiveThread();
+void executeThread();
 RETURN_CODE_TYPE initalizePorts();
 
 typedef struct 

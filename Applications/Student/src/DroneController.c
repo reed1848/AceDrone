@@ -36,10 +36,12 @@
 #include "LookupTable.h"
 
 #define RECEIVE_PROCESS_PERIOD  500000000LL
-#define RECEIVE_PROCESS_CAPACITY -1
+#define INFINITE_TIME -1
 #define PROCESS_STACK_SIZE 8000
 #define NA -1
 #define MAX_UPDATE_STRING_SIZE 35
+#define SEMAPHORE_MAX 1
+#define SEMAPHORE_INIT 1
 
 static QUEUING_PORT_ID_TYPE fConfigRequestQueuingPort;
 static QUEUING_PORT_ID_TYPE fConfigResponseQueuingPort;
@@ -51,6 +53,9 @@ char configCommands[MAX_INPUTS][MAXCONFIGPARAMLENGTH];
 int obstacleTimingLookupTable[NUMOBSTACLETYPES][MAXDISTANCE];
 
 PROCESS_ID_TYPE receiveThreadID;
+PROCESS_ID_TYPE executeThreadID;
+EVENT_ID_TYPE execEventID;
+SEMAPHORE_ID_TYPE configDataSemaphore;
 Drone student;
 IncomingUpdate updateData;
 BOOL shutdownFlag = FALSE;
@@ -103,8 +108,6 @@ void droneController_main( void )
     {
         printf( "Failed to enter normal mode %s", toImage( lReturnCode ) );
     }
-
-
     return;
 }
 
@@ -119,7 +122,7 @@ void initProcesses()
         PROCESS_STACK_SIZE,             /* Stack size    */
         1,                              /* Priority      */
         RECEIVE_PROCESS_PERIOD,         /* Period        */
-        RECEIVE_PROCESS_CAPACITY,       /* Time capacity */
+        INFINITE_TIME,                  /* Time capacity */
         SOFT                            /* Deadline type */ 
     };
 
@@ -141,6 +144,54 @@ void initProcesses()
         printf( "Failed to start process: %s \n", toImage( lReturnCode ) );
         return;
     }
+
+    // Set up execute thread
+    PROCESS_ATTRIBUTE_TYPE execThreadAttr = 
+    {
+        "EXEC_THREAD",                  /* Name          */
+        executeThread,                  /* Entry point   */
+        PROCESS_STACK_SIZE,             /* Stack size    */
+        1,                              /* Priority      */
+        INFINITE_TIME,                  /* Period        */
+        INFINITE_TIME,                  /* Time capacity */
+        SOFT                            /* Deadline type */ 
+    };
+
+    printf("Creating Execute Thread ...\n");
+    CREATE_PROCESS (
+    &execThreadAttr,   /* process attribute */
+    &executeThreadID, /* process Id        */
+    &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+
+    printf("Starting Execute Thread \n");
+    START(executeThreadID, &lReturnCode);
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to start process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+
+    // Create an event to wake up execute thread
+    EVENT_NAME_TYPE eventName = "ExecuteEvent";
+    CREATE_EVENT( eventName, &execEventID, &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create event: %s \n", toImage( lReturnCode ) );
+        return;
+    }  
+
+    // CREATE a semaphore to access shared resource
+    CREATE_SEMAPHORE("IncomingUpdateSemaphore", SEMAPHORE_INIT, SEMAPHORE_MAX, FIFO, &configDataSemaphore, &lReturnCode);
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to semaphore: %s \n", toImage( lReturnCode ) );
+        return;
+    }  
 }
 
 int receiveConfigData()
@@ -175,9 +226,42 @@ int receiveConfigData()
     }
 }
 
+void executeThread()
+{
+    RETURN_CODE_TYPE lReturnCode;
+    while(shutdownFlag != TRUE)
+    {
+        WAIT_EVENT( execEventID, INFINITE_TIME, &lReturnCode );
+        if ( lReturnCode != NO_ERROR )
+        {
+            printf( "Failed to wait for event: %s \n", toImage( lReturnCode ) );
+        }
+        WAIT_SEMAPHORE(configDataSemaphore, INFINITE_TIME, &lReturnCode);
+        if ( lReturnCode != NO_ERROR )
+        {
+            printf( "Failed to wait for semaphore: %s \n", toImage( lReturnCode ) );
+        }
+
+        // Run code here
+        printf("Running execute code here: \n");
+        /////
+
+        SIGNAL_SEMAPHORE(configDataSemaphore, &lReturnCode);
+        if ( lReturnCode != NO_ERROR )
+        {
+            printf( "Failed to set semaphore: %s \n", toImage( lReturnCode ) );
+        }
+        RESET_EVENT( execEventID, &lReturnCode );
+        if ( lReturnCode != NO_ERROR )
+        {
+            printf( "Failed to reset event: %s \n", toImage( lReturnCode ) );
+        }
+    }
+}
+
 void receiveThread()
 {
-    updateData.CycleCounter = 0;
+    updateData.CycleCounter = -1;
     RETURN_CODE_TYPE retCode;
     MESSAGE_SIZE_TYPE lenMsgData = 0;
     unsigned char incomingObstacleUpdate[MAX_UPDATE_STRING_SIZE] = {};
@@ -190,6 +274,11 @@ void receiveThread()
         if (retCode == NO_ERROR)
         {
             printf("in decoding string %d with value %s \n", updateData.CycleCounter, incomingObstacleUpdate);
+            WAIT_SEMAPHORE(configDataSemaphore, INFINITE_TIME, &retCode);
+            if ( retCode != NO_ERROR )
+            {
+                printf( "Failed to wait for semaphore: %s \n", toImage( retCode ) );
+            }
             /* Reset update data upon successful read */
             memset(updateData.values, NA, sizeof(updateData.values));
             /* Parse string and update struct*/
@@ -225,9 +314,21 @@ void receiveThread()
                 }
                 messageCounter++;
             }
-
-            /* TODO: Signal State Machine Thread to run and send response back */
             updateData.CycleCounter += 1;
+            SIGNAL_SEMAPHORE(configDataSemaphore, &retCode);
+            if ( retCode != NO_ERROR )
+            {
+                printf( "Failed to set semaphore: %s \n", toImage( retCode ) );
+            }
+
+            SET_EVENT( execEventID, &retCode );
+            if ( retCode != NO_ERROR )
+            {
+                printf( "Failed to set event: %s \n", toImage( retCode ) );
+            }
+
+            
+            
         }
 
         /************************************/
