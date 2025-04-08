@@ -5,6 +5,26 @@
 
 int receiveConfigData();
 void sendConfigData();
+void initProcesses();
+void receiveThread();
+void executeThread();
 RETURN_CODE_TYPE initalizePorts();
+
+typedef struct 
+{
+    union {
+        struct {
+            int FuelRequest;
+            int AstroidDistance;
+            int MountainDistance;
+            int StarDistance;
+            int BlackHoleDistance;
+            int ExplodingSunDistance;
+        };
+        int values[6]; // Array to access all integers at once
+    };
+    int CycleCounter;
+}IncomingUpdate;
+
 
 #endif

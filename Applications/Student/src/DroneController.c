@@ -35,13 +35,30 @@
 #include "Parameters.h"
 #include "LookupTable.h"
 
+#define RECEIVE_PROCESS_PERIOD  500000000LL
+#define INFINITE_TIME -1
+#define PROCESS_STACK_SIZE 8000
+#define NA -1
+#define MAX_UPDATE_STRING_SIZE 35
+#define SEMAPHORE_MAX 1
+#define SEMAPHORE_INIT 1
+
 static QUEUING_PORT_ID_TYPE fConfigRequestQueuingPort;
 static QUEUING_PORT_ID_TYPE fConfigResponseQueuingPort;
+static QUEUING_PORT_ID_TYPE fCommandQueuingReceiver;
+static QUEUING_PORT_ID_TYPE fResponseQueuingSender;
 
 int numOfConfigCommands = 0;
 char configCommands[MAX_INPUTS][MAXCONFIGPARAMLENGTH];
 int obstacleTimingLookupTable[NUMOBSTACLETYPES][MAXDISTANCE];
+
+PROCESS_ID_TYPE receiveThreadID;
+PROCESS_ID_TYPE executeThreadID;
+EVENT_ID_TYPE execEventID;
+SEMAPHORE_ID_TYPE configDataSemaphore;
 Drone student;
+IncomingUpdate updateData;
+BOOL shutdownFlag = FALSE;
 
 /***************************************************************************************************
 ** droneController_main
@@ -66,6 +83,7 @@ void droneController_main( void )
     if ( lReturnCode != NO_ERROR )
     {
         printf( "Failed to initialize ports: %s", toImage( lReturnCode ) );
+        return;
     }
 
     // Receive grader's config request
@@ -78,7 +96,102 @@ void droneController_main( void )
     // Send student config response
     sendConfigData();
 
+    // Create receiving thread to receive and process incoming messages from grader
+    initProcesses();
+
+    /**************************************************/
+    /* enter NORMAL partition mode to begin operation */
+    /**************************************************/
+    printf( "Entering normal mode ... \n" );
+    SET_PARTITION_MODE ( NORMAL, &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to enter normal mode %s", toImage( lReturnCode ) );
+    }
     return;
+}
+
+void initProcesses()
+{
+    RETURN_CODE_TYPE lReturnCode;
+    // Create receive thread
+    PROCESS_ATTRIBUTE_TYPE receiveThreadAttr = 
+    {
+        "RECEIVE_THREAD",               /* Name          */
+        receiveThread,                  /* Entry point   */
+        PROCESS_STACK_SIZE,             /* Stack size    */
+        1,                              /* Priority      */
+        RECEIVE_PROCESS_PERIOD,         /* Period        */
+        INFINITE_TIME,                  /* Time capacity */
+        SOFT                            /* Deadline type */ 
+    };
+
+    printf("Creating Receive Thread ...\n");
+    CREATE_PROCESS (
+    &receiveThreadAttr,   /* process attribute */
+    &receiveThreadID, /* process Id        */
+    &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+
+    printf("Starting Receive thread \n");
+    START(receiveThreadID, &lReturnCode);
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to start process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+
+    // Set up execute thread
+    PROCESS_ATTRIBUTE_TYPE execThreadAttr = 
+    {
+        "EXEC_THREAD",                  /* Name          */
+        executeThread,                  /* Entry point   */
+        PROCESS_STACK_SIZE,             /* Stack size    */
+        1,                              /* Priority      */
+        INFINITE_TIME,                  /* Period        */
+        INFINITE_TIME,                  /* Time capacity */
+        SOFT                            /* Deadline type */ 
+    };
+
+    printf("Creating Execute Thread ...\n");
+    CREATE_PROCESS (
+    &execThreadAttr,   /* process attribute */
+    &executeThreadID, /* process Id        */
+    &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+
+    printf("Starting Execute Thread \n");
+    START(executeThreadID, &lReturnCode);
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to start process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+
+    // Create an event to wake up execute thread
+    EVENT_NAME_TYPE eventName = "ExecuteEvent";
+    CREATE_EVENT( eventName, &execEventID, &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create event: %s \n", toImage( lReturnCode ) );
+        return;
+    }  
+
+    // CREATE a semaphore to access shared resource
+    CREATE_SEMAPHORE("IncomingUpdateSemaphore", SEMAPHORE_INIT, SEMAPHORE_MAX, FIFO, &configDataSemaphore, &lReturnCode);
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to semaphore: %s \n", toImage( lReturnCode ) );
+        return;
+    }  
 }
 
 int receiveConfigData()
@@ -111,6 +224,121 @@ int receiveConfigData()
             }
         }
     }
+}
+
+void executeThread()
+{
+    RETURN_CODE_TYPE lReturnCode;
+    while(shutdownFlag != TRUE)
+    {
+        WAIT_EVENT( execEventID, INFINITE_TIME, &lReturnCode );
+        if ( lReturnCode != NO_ERROR )
+        {
+            printf( "Failed to wait for event: %s \n", toImage( lReturnCode ) );
+        }
+        WAIT_SEMAPHORE(configDataSemaphore, INFINITE_TIME, &lReturnCode);
+        if ( lReturnCode != NO_ERROR )
+        {
+            printf( "Failed to wait for semaphore: %s \n", toImage( lReturnCode ) );
+        }
+
+        // Run code here
+        printf("Running execute code here: \n");
+        /////
+
+        SIGNAL_SEMAPHORE(configDataSemaphore, &lReturnCode);
+        if ( lReturnCode != NO_ERROR )
+        {
+            printf( "Failed to set semaphore: %s \n", toImage( lReturnCode ) );
+        }
+        RESET_EVENT( execEventID, &lReturnCode );
+        if ( lReturnCode != NO_ERROR )
+        {
+            printf( "Failed to reset event: %s \n", toImage( lReturnCode ) );
+        }
+    }
+}
+
+void receiveThread()
+{
+    updateData.CycleCounter = -1;
+    RETURN_CODE_TYPE retCode;
+    MESSAGE_SIZE_TYPE lenMsgData = 0;
+    unsigned char incomingObstacleUpdate[MAX_UPDATE_STRING_SIZE] = {};
+
+    while (shutdownFlag != TRUE)
+    {
+        int messageCounter = 0;
+        /* Read in the string from the receivePort, nonblocking call */
+        retCode = recvQueuingMsg(fCommandQueuingReceiver, incomingObstacleUpdate, &lenMsgData);
+        if (retCode == NO_ERROR)
+        {
+            printf("in decoding string %d with value %s \n", updateData.CycleCounter, incomingObstacleUpdate);
+            WAIT_SEMAPHORE(configDataSemaphore, INFINITE_TIME, &retCode);
+            if ( retCode != NO_ERROR )
+            {
+                printf( "Failed to wait for semaphore: %s \n", toImage( retCode ) );
+            }
+            /* Reset update data upon successful read */
+            memset(updateData.values, NA, sizeof(updateData.values));
+            /* Parse string and update struct*/
+            while (messageCounter < lenMsgData)
+            {
+                if ((messageCounter == 0) && incomingObstacleUpdate[0] == 'F')
+                {
+                    updateData.FuelRequest = TRUE;
+                }
+                else
+                {
+                    /* Parse the first letter and grab the associated distance */
+                    switch (incomingObstacleUpdate[messageCounter])
+                    {
+                        case 'A':
+                            updateData.AstroidDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        case 'M':
+                            updateData.MountainDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        case 'S':
+                            updateData.StarDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        case 'B':
+                            updateData.BlackHoleDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        case 'E':
+                            updateData.ExplodingSunDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                messageCounter++;
+            }
+            updateData.CycleCounter += 1;
+            SIGNAL_SEMAPHORE(configDataSemaphore, &retCode);
+            if ( retCode != NO_ERROR )
+            {
+                printf( "Failed to set semaphore: %s \n", toImage( retCode ) );
+            }
+
+            SET_EVENT( execEventID, &retCode );
+            if ( retCode != NO_ERROR )
+            {
+                printf( "Failed to set event: %s \n", toImage( retCode ) );
+            }
+
+            
+            
+        }
+
+        /************************************/
+        /* Wait till next period expiration */
+        /************************************/
+        PERIODIC_WAIT ( &retCode );
+    }
+    printf("Shutdown flag activated?? ...\n");
+    STOP_SELF();
+
 }
 
 void sendConfigData()
@@ -179,6 +407,34 @@ RETURN_CODE_TYPE initalizePorts()
         {
 			       printf( "Failed to create config response queuing sender port: %s", toImage( lReturnCode ) );
         }
+    }
+
+    
+    CREATE_QUEUING_PORT( "CommandQueuingReceiver"
+        , 64
+        , 4
+        , DESTINATION
+        , PRIORITY
+        , &fCommandQueuingReceiver
+        , &lReturnCode );
+
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create CommandQueuingReceiver port: %s", toImage( lReturnCode ) );
+    }
+    else
+    {
+        CREATE_QUEUING_PORT( "ResponseQueuingSender"
+                    , 32
+                    , 4
+                    , SOURCE
+                    , PRIORITY
+                    , &fResponseQueuingSender
+                    , &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create ResponseQueuingSender port: %s", toImage( lReturnCode ) );
+    }
     }
 
     printf( "--------------- Finished Ports ---------------\n\n" );
