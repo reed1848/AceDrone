@@ -259,7 +259,6 @@ void executeThread()
         /////
         if (updateData.FuelRequest == TRUE)
         {
-            printf("Fuel Rate: %f\n Fuel: %f\n", student.fuelRate, student.fuel);
             setDroneFuel(&student, floorf((1000.0f - ((float)updateData.CycleCounter * student.fuelRate)) * 10.0f) / 10.0f);
             sendFuelData();
         }
@@ -277,9 +276,8 @@ void executeThread()
         }
     }
 }
-    // updateFuel();
-    // sendFuelData();
-    // sendStateData();
+
+
 void receiveThread()
 {
     updateData.CycleCounter = 0;
