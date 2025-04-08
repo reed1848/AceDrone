@@ -8,6 +8,9 @@ void sendConfigData();
 void initProcesses();
 void receiveThread();
 void executeThread();
+void incrementStateMachineCycle();
+void getPositionString();
+void addObstaclesToStateMachine();
 RETURN_CODE_TYPE initalizePorts();
 
 typedef struct 

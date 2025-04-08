@@ -18,15 +18,17 @@ typedef enum  {
     BottomRight
 }PositionState;
 
+//NOTE: enum of basic directions already taken by apex library
+// Hence weird direction names
 typedef enum {
-    LEFT,
-    RIGHT,
+    MOVE_LEFT,
+    MOVE_RIGHT,
     NO_HORIZONTAL
 }HorizontalMovement;
 
 typedef enum {
-    UP,
-    DOWN,
+    MOVE_UP,
+    MOVE_DOWN,
     NO_VERTICAL
 }VerticalMovement;
 
@@ -48,6 +50,5 @@ typedef struct  {
 
 DroneState * DroneStateMachine_Init();
 void DroneStateMachine_Avoid_Obstacle(DroneState *sm, Obstacle obstacles[MAX_OBSTACLE_WARNINGS], int num_obstacles);
-
 
 #endif

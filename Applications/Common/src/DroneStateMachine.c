@@ -40,16 +40,16 @@ void DroneStateMachine_Avoid_Obstacle(DroneState *sm, Obstacle obstacles[MAX_OBS
                 vm = NO_VERTICAL;
                 break;
             case Mountain:
-                vm = (vm == DOWN)? NO_VERTICAL: UP;
+                vm = (vm == MOVE_UP)? NO_VERTICAL: MOVE_UP;
                 break;
             case ShootingStar:
-                vm = (vm == UP)? NO_VERTICAL: DOWN;
+                vm = (vm == MOVE_UP)? NO_VERTICAL: MOVE_UP;
                 break;
             case BlackHole:
-                hm = (hm == LEFT)? NO_HORIZONTAL: RIGHT;
+                hm = (hm == MOVE_LEFT)? NO_HORIZONTAL: MOVE_RIGHT;
                 break;
             case ExplodingSun:
-                hm = (hm == RIGHT)? NO_HORIZONTAL: LEFT;
+                hm = (hm == MOVE_RIGHT)? NO_HORIZONTAL: MOVE_LEFT;
                 break;
             default:
                 printf("ERROR: Unrecognized Obstacle");
@@ -75,7 +75,7 @@ static PositionState move_drone(PositionState initPos, HorizontalMovement hm, Ve
 
     // Adjust horizontal boundaries based off of boundaries
     switch(hm){
-        case LEFT:
+        case MOVE_LEFT:
             switch(initPos){
                 case TopCenter:
                     endPos = TopLeft;
@@ -95,9 +95,11 @@ static PositionState move_drone(PositionState initPos, HorizontalMovement hm, Ve
                 case BottomRight:
                     endPos = BottomCenter;
                     break;
+                default:
+                    break;
             }
             break;
-        case RIGHT:
+        case MOVE_RIGHT:
             switch(initPos){
                 case TopCenter:
                     endPos = TopRight;
@@ -116,6 +118,8 @@ static PositionState move_drone(PositionState initPos, HorizontalMovement hm, Ve
                     break;
                 case BottomLeft:
                     endPos = BottomCenter;
+                    break;
+                default:
                     break;
             }
             break;
@@ -141,7 +145,7 @@ static PositionState move_drone(PositionState initPos, HorizontalMovement hm, Ve
     // NOTE: MUST switch based off endPos so as to not overwrite the horizontal movement
     //       TODO: REFACTOR TO HAVE MORE CLEAR LOGIC
     switch(vm){
-        case UP:
+        case MOVE_UP:
             switch(endPos){
                 case MiddleLeft:
                     endPos = TopLeft;
@@ -165,7 +169,7 @@ static PositionState move_drone(PositionState initPos, HorizontalMovement hm, Ve
                     break;
             }
             break;
-        case DOWN:
+        case MOVE_DOWN:
             switch(initPos){
                 case TopLeft:
                     endPos = MiddleLeft;

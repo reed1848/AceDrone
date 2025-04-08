@@ -1,8 +1,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-#include "../include/ObstacleHander.h"
+#include "../include/ObstacleHandler.h"
 
 const char* PositionStateStrings[] = {
     "TopLeft",
@@ -28,7 +29,7 @@ ObstacleHolder *obstacleHolder;
 int DistanceLookUp[NUMOBSTACLETYPES][MAXDISTANCE];
 DroneState *droneState;
 
-void ObstacleHolder_Init(Drone *drone){
+void ObstacleHolder_Init(){
     obstacleHolder = (ObstacleHolder*)malloc(sizeof(ObstacleHolder));
     obstacleHolder->count = 0;
     //setLookupTable(drone, DistanceLookUp);
@@ -65,6 +66,10 @@ void ObstacleHolder_Update_Obstacle_Times(int deltaTime){
     printf("Position: is %s\n", PositionStateStrings[ droneState->position ]);
 }
 
+void ObstacleHolder_Get_Position_Str(char *positionString){
+    strcpy(positionString, PositionStateStrings[ droneState->position ]);
+}
+
 // Add a new obstacle to the collection
 bool ObstacleHolder_Add_Obstacle(Obstacle newObstacle, int time) {
     if (obstacleHolder->count >= MAX_OBSTACLES) {
@@ -87,43 +92,43 @@ bool ObstacleHolder_Add_Obstacle(Obstacle newObstacle, int time) {
 //     }
 // }
 
-int main() {
-    printf("Started\n");
-    Drone *drone;
-    ObstacleHolder_Init(drone);
+// int main() {
+//     printf("Started\n");
+//     Drone *drone;
+//     ObstacleHolder_Init(drone);
     
-    ObstacleHolder_Add_Obstacle(AsteroidBelt, 2);
-    ObstacleHolder_Add_Obstacle(Mountain, 3);
-    ObstacleHolder_Add_Obstacle(ShootingStar, 4);
-    ObstacleHolder_Add_Obstacle(BlackHole, 5);
-    ObstacleHolder_Add_Obstacle(ExplodingSun, 6);
+//     ObstacleHolder_Add_Obstacle(AsteroidBelt, 2);
+//     ObstacleHolder_Add_Obstacle(Mountain, 3);
+//     ObstacleHolder_Add_Obstacle(ShootingStar, 4);
+//     ObstacleHolder_Add_Obstacle(BlackHole, 5);
+//     ObstacleHolder_Add_Obstacle(ExplodingSun, 6);
 
-    ObstacleHolder_Add_Obstacle(Mountain, 8);
-    ObstacleHolder_Add_Obstacle(ShootingStar, 8);
-    ObstacleHolder_Add_Obstacle(BlackHole, 9);
-    ObstacleHolder_Add_Obstacle(ExplodingSun, 9);
+//     ObstacleHolder_Add_Obstacle(Mountain, 8);
+//     ObstacleHolder_Add_Obstacle(ShootingStar, 8);
+//     ObstacleHolder_Add_Obstacle(BlackHole, 9);
+//     ObstacleHolder_Add_Obstacle(ExplodingSun, 9);
 
-    ObstacleHolder_Add_Obstacle(Mountain, 10);
-    ObstacleHolder_Add_Obstacle(BlackHole, 10);
+//     ObstacleHolder_Add_Obstacle(Mountain, 10);
+//     ObstacleHolder_Add_Obstacle(BlackHole, 10);
 
-    ObstacleHolder_Add_Obstacle(Mountain, 11);
-    ObstacleHolder_Add_Obstacle(ShootingStar, 11);
-    ObstacleHolder_Add_Obstacle(BlackHole, 11);
-    ObstacleHolder_Add_Obstacle(ExplodingSun, 11);
+//     ObstacleHolder_Add_Obstacle(Mountain, 11);
+//     ObstacleHolder_Add_Obstacle(ShootingStar, 11);
+//     ObstacleHolder_Add_Obstacle(BlackHole, 11);
+//     ObstacleHolder_Add_Obstacle(ExplodingSun, 11);
 
-    ObstacleHolder_Add_Obstacle(BlackHole, 12);
-    ObstacleHolder_Add_Obstacle(BlackHole, 13);
-    ObstacleHolder_Add_Obstacle(BlackHole, 14);
+//     ObstacleHolder_Add_Obstacle(BlackHole, 12);
+//     ObstacleHolder_Add_Obstacle(BlackHole, 13);
+//     ObstacleHolder_Add_Obstacle(BlackHole, 14);
 
-    ObstacleHolder_Add_Obstacle(BlackHole, 15);
-    ObstacleHolder_Add_Obstacle(AsteroidBelt, 15);
+//     ObstacleHolder_Add_Obstacle(BlackHole, 15);
+//     ObstacleHolder_Add_Obstacle(AsteroidBelt, 15);
 
-    // Simulate clock cycles
-    int deltaTime = 1; // 1 second per cycle
-    for (int cycle = 0; cycle < 20; cycle++) {
-        printf("\nClock cycle %d:\n", cycle + 1);
-        ObstacleHolder_Update_Obstacle_Times( deltaTime);
-    }
+//     // Simulate clock cycles
+//     int deltaTime = 1; // 1 second per cycle
+//     for (int cycle = 0; cycle < 20; cycle++) {
+//         printf("\nClock cycle %d:\n", cycle + 1);
+//         ObstacleHolder_Update_Obstacle_Times( deltaTime);
+//     }
 
-    return 0;
-}
+//     return 0;
+// }

@@ -34,6 +34,8 @@
 #include "Utilities.h"
 #include "Parameters.h"
 #include "LookupTable.h"
+#include "../../Common/include/ObstacleHandler.h"
+#include "../../Common/include/DroneStateMachine.h"
 
 #define RECEIVE_PROCESS_PERIOD  500000000LL
 #define INFINITE_TIME -1
@@ -42,6 +44,7 @@
 #define MAX_UPDATE_STRING_SIZE 35
 #define SEMAPHORE_MAX 1
 #define SEMAPHORE_INIT 1
+#define ONE_CYCLE 1
 
 static QUEUING_PORT_ID_TYPE fConfigRequestQueuingPort;
 static QUEUING_PORT_ID_TYPE fConfigResponseQueuingPort;
@@ -59,6 +62,8 @@ SEMAPHORE_ID_TYPE configDataSemaphore;
 Drone student;
 IncomingUpdate updateData;
 BOOL shutdownFlag = FALSE;
+
+char positionString[MAX_POSITION_STATE_LENGTH];
 
 /***************************************************************************************************
 ** droneController_main
@@ -113,6 +118,10 @@ void droneController_main( void )
 
 void initProcesses()
 {
+
+    //init statemachine
+    ObstacleHolder_Init();
+
     RETURN_CODE_TYPE lReturnCode;
     // Create receive thread
     PROCESS_ATTRIBUTE_TYPE receiveThreadAttr = 
@@ -244,6 +253,18 @@ void executeThread()
 
         // Run code here
         printf("Running execute code here: \n");
+
+        addObstaclesToStateMachine();
+        incrementStateMachineCycle();
+        getPositionString();
+        int length = strlen(positionString);
+
+        SEND_QUEUING_MESSAGE(
+            fResponseQueuingSender,
+            (MESSAGE_ADDR_TYPE) positionString,
+            length + 1,
+            0,
+            &lReturnCode );
         /////
 
         SIGNAL_SEMAPHORE(configDataSemaphore, &lReturnCode);
@@ -439,4 +460,32 @@ RETURN_CODE_TYPE initalizePorts()
 
     printf( "--------------- Finished Ports ---------------\n\n" );
     return lReturnCode;
+}
+
+
+void addObstaclesToStateMachine(){
+    if(updateData.AstroidDistance != NA){
+        ObstacleHolder_Add_Obstacle(AsteroidBelt, updateData.AstroidDistance);
+    }
+    if(updateData.BlackHoleDistance != NA){
+        ObstacleHolder_Add_Obstacle(BlackHole, updateData.BlackHoleDistance);
+    }
+    if(updateData.ExplodingSunDistance != NA){
+        ObstacleHolder_Add_Obstacle(ExplodingSun, updateData.ExplodingSunDistance);
+    }
+    if(updateData.MountainDistance != NA){
+        ObstacleHolder_Add_Obstacle(Mountain, updateData.MountainDistance);
+    }
+    if(updateData.StarDistance != NA){
+        ObstacleHolder_Add_Obstacle(ShootingStar, updateData.StarDistance);
+    }
+
+}
+
+void incrementStateMachineCycle(){
+    ObstacleHolder_Update_Obstacle_Times(ONE_CYCLE);
+}
+
+void getPositionString(){
+    ObstacleHolder_Get_Position_Str(positionString);
 }
