@@ -38,8 +38,13 @@
 #include "LookupTable.h"
 
 #define RECEIVE_PROCESS_PERIOD 500000000LL
-#define RECEIVE_PROCESS_CAPACITY -1LL
+#define INFINITE_TIME -1
+//#define RECEIVE_PROCESS_CAPACITY -1LL
 #define PROCESS_STACK_SIZE 8000
+#define NA -1
+#define MAX_UPDATE_STRING_SIZE 35
+#define SEMAPHORE_MAX 1
+#define SEMAPHORE_INIT 1
 
 static QUEUING_PORT_ID_TYPE fConfigRequestQueuingPort;
 static QUEUING_PORT_ID_TYPE fConfigResponseQueuingPort;
@@ -49,8 +54,13 @@ static QUEUING_PORT_ID_TYPE fCommandQueuingReceiver;
 int numOfConfigCommands = 0;
 char configCommands[MAX_INPUTS][MAXCONFIGPARAMLENGTH];
 int obstacleTimingLookupTable[NUMOBSTACLETYPES][MAXDISTANCE];
+
 PROCESS_ID_TYPE receiveThreadID;
+PROCESS_ID_TYPE executeThreadID;
+EVENT_ID_TYPE execEventID;
+SEMAPHORE_ID_TYPE configDataSemaphore;
 Drone student;
+IncomingUpdate updateData;
 BOOL shutdownFlag = FALSE;
 clock_t startTime;
 double cycles = 0;
@@ -112,10 +122,6 @@ void droneController_main( void )
 
 void initProcesses()
 {
-    // fuelResponseBuffer = (char *)malloc(40);
-    // if (fuelResponseBuffer == NULL){
-    //     printf("Memory allocation faield for fuelResponseBuffer\n");
-    // }
     allocateBuffers();
     setDroneState(&student, "BottomCenter");
 
@@ -126,9 +132,9 @@ void initProcesses()
         "RECEIVE_THREAD",               /* Name          */
         receiveThread,                  /* Entry point   */
         PROCESS_STACK_SIZE,             /* Stack size    */
-        10,                             /* Priority      */
+        1,                             /* Priority      */
         RECEIVE_PROCESS_PERIOD,         /* Period        */
-        RECEIVE_PROCESS_CAPACITY,     /* Time capacity */
+        INFINITE_TIME,     /* Time capacity */
         SOFT                            /* Deadline type */ 
     };
 
@@ -148,6 +154,54 @@ void initProcesses()
     if ( lReturnCode != NO_ERROR )
     {
         printf( "Failed to start process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+    
+    // Set up execute thread
+    PROCESS_ATTRIBUTE_TYPE execThreadAttr = 
+    {
+        "EXEC_THREAD",                  /* Name          */
+        executeThread,                  /* Entry point   */
+        PROCESS_STACK_SIZE,             /* Stack size    */
+        1,                              /* Priority      */
+        INFINITE_TIME,                  /* Period        */
+        INFINITE_TIME,                  /* Time capacity */
+        SOFT                            /* Deadline type */ 
+    };
+
+    printf("Creating Execute Thread ...\n");
+    CREATE_PROCESS (
+    &execThreadAttr,   /* process attribute */
+    &executeThreadID, /* process Id        */
+    &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+
+    printf("Starting Execute Thread \n");
+    START(executeThreadID, &lReturnCode);
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to start process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+
+    // Create an event to wake up execute thread
+    EVENT_NAME_TYPE eventName = "ExecuteEvent";
+    CREATE_EVENT( eventName, &execEventID, &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create event: %s \n", toImage( lReturnCode ) );
+        return;
+    }  
+
+    // CREATE a semaphore to access shared resource
+    CREATE_SEMAPHORE("IncomingUpdateSemaphore", SEMAPHORE_INIT, SEMAPHORE_MAX, FIFO, &configDataSemaphore, &lReturnCode);
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to semaphore: %s \n", toImage( lReturnCode ) );
         return;
     }
 }
@@ -184,29 +238,127 @@ int receiveConfigData()
     }
 }
 
+void executeThread()
+{
+    RETURN_CODE_TYPE lReturnCode;
+    while(shutdownFlag != TRUE)
+    {
+        WAIT_EVENT( execEventID, INFINITE_TIME, &lReturnCode );
+        if ( lReturnCode != NO_ERROR )
+        {
+            printf( "Failed to wait for event: %s \n", toImage( lReturnCode ) );
+        }
+        WAIT_SEMAPHORE(configDataSemaphore, INFINITE_TIME, &lReturnCode);
+        if ( lReturnCode != NO_ERROR )
+        {
+            printf( "Failed to wait for semaphore: %s \n", toImage( lReturnCode ) );
+        }
+
+        // Run code here
+        printf("Running execute code here: \n");
+        /////
+        if (updateData.FuelRequest == TRUE)
+        {
+            printf("Fuel Rate: %f\n Fuel: %f\n", student.fuelRate, student.fuel);
+            setDroneFuel(&student, floorf((1000.0f - ((float)updateData.CycleCounter * student.fuelRate)) * 10.0f) / 10.0f);
+            sendFuelData();
+        }
+        sendStateData();
+
+        SIGNAL_SEMAPHORE(configDataSemaphore, &lReturnCode);
+        if ( lReturnCode != NO_ERROR )
+        {
+            printf( "Failed to set semaphore: %s \n", toImage( lReturnCode ) );
+        }
+        RESET_EVENT( execEventID, &lReturnCode );
+        if ( lReturnCode != NO_ERROR )
+        {
+            printf( "Failed to reset event: %s \n", toImage( lReturnCode ) );
+        }
+    }
+}
+    // updateFuel();
+    // sendFuelData();
+    // sendStateData();
 void receiveThread()
 {
+    updateData.CycleCounter = 0;
     RETURN_CODE_TYPE retCode;
-    updateFuel();
-    sendFuelData();
-    sendStateData();
+    MESSAGE_SIZE_TYPE lenMsgData = 0;
+    unsigned char incomingObstacleUpdate[MAX_UPDATE_STRING_SIZE] = {};
+
     while (shutdownFlag != TRUE)
     {
-        /* DO WORK */
-        
-        //printf("Doing work ...\n");
+        int messageCounter = 0;
+        /* Read in the string from the receivePort, nonblocking call */
+        retCode = recvQueuingMsg(fCommandQueuingReceiver, incomingObstacleUpdate, &lenMsgData);
+        if (retCode == NO_ERROR)
+        {
+            printf("in decoding string %d with value %s \n", updateData.CycleCounter, incomingObstacleUpdate);
+            WAIT_SEMAPHORE(configDataSemaphore, INFINITE_TIME, &retCode);
+            if ( retCode != NO_ERROR )
+            {
+                printf( "Failed to wait for semaphore: %s \n", toImage( retCode ) );
+            }
+            /* Reset update data upon successful read */
+            memset(updateData.values, NA, sizeof(updateData.values));
+            /* Parse string and update struct*/
+            while (messageCounter < lenMsgData)
+            {
+                if ((messageCounter == 0) && incomingObstacleUpdate[0] == 'F')
+                {
+                    updateData.FuelRequest = TRUE;
+                }
+                else
+                {
+                    /* Parse the first letter and grab the associated distance */
+                    switch (incomingObstacleUpdate[messageCounter])
+                    {
+                        case 'A':
+                            updateData.AstroidDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        case 'M':
+                            updateData.MountainDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        case 'S':
+                            updateData.StarDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        case 'B':
+                            updateData.BlackHoleDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        case 'E':
+                            updateData.ExplodingSunDistance = incomingObstacleUpdate[++messageCounter];
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                messageCounter++;
+            }
+            updateData.CycleCounter += 1;
+            SIGNAL_SEMAPHORE(configDataSemaphore, &retCode);
+            if ( retCode != NO_ERROR )
+            {
+                printf( "Failed to set semaphore: %s \n", toImage( retCode ) );
+            }
+
+            SET_EVENT( execEventID, &retCode );
+            if ( retCode != NO_ERROR )
+            {
+                printf( "Failed to set event: %s \n", toImage( retCode ) );
+            }
+
+            
+            
+        }
+
         /************************************/
         /* Wait till next period expiration */
         /************************************/
         PERIODIC_WAIT ( &retCode );
-        if (retCode != NO_ERROR)
-        {
-            printf( "Failed to periodic wait: %s\n", toImage( retCode ) );
-        }
     }
     printf("Shutdown flag activated?? ...\n");
     STOP_SELF();
-
 }
 
 void sendConfigData()
@@ -304,6 +456,7 @@ void sendStateData()
     printf( "\n---------- State Response Complete ----------\n\n" );
 }
 
+
 RETURN_CODE_TYPE initalizePorts()
 {
     RETURN_CODE_TYPE lReturnCode;
@@ -337,46 +490,36 @@ RETURN_CODE_TYPE initalizePorts()
         }
     }
 
-    CREATE_QUEUING_PORT( "ResponseQueuingSender"
-        , 32
+    
+    CREATE_QUEUING_PORT( "CommandQueuingReceiver"
+        , 64
         , 4
-        , SOURCE
+        , DESTINATION
         , PRIORITY
-        , &fResponseQueuingSender
+        , &fCommandQueuingReceiver
         , &lReturnCode );
 
     if ( lReturnCode != NO_ERROR )
     {
-    printf( "Failed to create Response request queuing receiver port: %s", toImage( lReturnCode ) );
+        printf( "Failed to create CommandQueuingReceiver port: %s", toImage( lReturnCode ) );
     }
     else
     {
-    CREATE_QUEUING_PORT( "CommandQueuingReceiver"
-                , 64
-                , 4
-                , DESTINATION
-                , PRIORITY
-                , &fCommandQueuingReceiver
-                , &lReturnCode );
+        CREATE_QUEUING_PORT( "ResponseQueuingSender"
+                    , 32
+                    , 4
+                    , SOURCE
+                    , PRIORITY
+                    , &fResponseQueuingSender
+                    , &lReturnCode );
     if ( lReturnCode != NO_ERROR )
     {
-    printf( "Failed to create Command receiver port: %s", toImage( lReturnCode ) );
+        printf( "Failed to create ResponseQueuingSender port: %s", toImage( lReturnCode ) );
     }
-}
+    }
 
     printf( "--------------- Finished Ports ---------------\n\n" );
     return lReturnCode;
 }
 
-void updateFuel(){
-    double elapsedTime = 0;
-    clock_t currentTime = clock();
 
-    elapsedTime = ceil(((double)(currentTime - startTime)) / CLOCKS_PER_SEC);
-    if (elapsedTime != cycles)
-    {
-        cycles = elapsedTime;
-        setDroneFuel(&student, student.fuel - (cycles * student.fuelRate));
-    }
-
-}

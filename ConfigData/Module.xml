@@ -26,8 +26,8 @@
 
   <Module_Schedule>
     <Partition_Schedule ScheduleIdentifier="0">
-      <Window_Schedule PartitionName="Grader" PeriodDurationSeconds="0.5" PartitionPeriodStart="1"/>
-      <Window_Schedule PartitionName="Student" PeriodDurationSeconds="0.5" PartitionPeriodStart="1"/>
+      <Window_Schedule PartitionName="Grader" PeriodDurationSeconds="0.1" PartitionPeriodStart="1"/>
+      <Window_Schedule PartitionName="Student" PeriodDurationSeconds="0.25" PartitionPeriodStart="1"/>
     </Partition_Schedule>
   </Module_Schedule>
 
