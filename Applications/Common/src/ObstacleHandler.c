@@ -40,8 +40,12 @@ void ObstacleHolder_Update_Obstacle_Times(int deltaTime){
     Obstacle obstaclesToDodge[MAX_OBSTACLE_WARNINGS];
     int numObstaclesToDodge = 0;
 
+    printf("...........................................................\n");
+    printf("Updating Obstacles (Obstacle:Clock Cycles)\n");
+
     for (int i = 0; i < obstacleHolder->count; i++) {
         obstacleHolder->obstacles[i].timeToImpact -= deltaTime;
+        printf("%s: %i\n", ObstacleStrings[obstacleHolder->obstacles[i].obstacle], obstacleHolder->obstacles[i].timeToImpact);
         if (obstacleHolder->obstacles[i].timeToImpact <= 0) {
             // Handle obstacle impact
             obstaclesToDodge[numObstaclesToDodge] = obstacleHolder->obstacles[i].obstacle;
@@ -57,6 +61,7 @@ void ObstacleHolder_Update_Obstacle_Times(int deltaTime){
         }
     }
 
+    printf("...........................................................\n");
 
     printf("\n%i obstacles to Dodge:\n", numObstaclesToDodge);
     for(int i=0; i< numObstaclesToDodge; i ++){
@@ -82,6 +87,8 @@ bool ObstacleHolder_Add_Obstacle(Obstacle newObstacle, int time) {
     obstacleHolder->obstacles[obstacleHolder->count].obstacle = newObstacle;
     obstacleHolder->obstacles[obstacleHolder->count].timeToImpact = time;
     obstacleHolder->count++;
+
+    printf("Inserted Obstacle %s w/ %i TTI\n", PositionStateStrings[obstacleHolder->obstacles[obstacleHolder->count].obstacle], obstacleHolder->obstacles[obstacleHolder->count].timeToImpact);
     return true;
 }
 

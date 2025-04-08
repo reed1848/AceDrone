@@ -255,6 +255,12 @@ void executeThread()
         printf("--------------------------------------------------------------------------\n");
         printf("New Clock Cycle - Execute Thread\n");
 
+        printf("\nContents of Update Data:\n");
+        for(int i=0; i < 6; i++){
+            printf("%i\n", updateData.values[i]);
+        }
+        printf("\n");
+
         addObstaclesToStateMachine();
         incrementStateMachineCycle();
         getPositionString();
@@ -313,22 +319,23 @@ void receiveThread()
                 else
                 {
                     /* Parse the first letter and grab the associated distance */
+                    int distance = incomingObstacleUpdate[++messageCounter];
                     switch (incomingObstacleUpdate[messageCounter])
                     {
                         case 'A':
-                            updateData.AstroidDistance = incomingObstacleUpdate[++messageCounter];
+                            updateData.AstroidDistance = distance;//getLookupTableValue(obstacleTimingLookupTable, AsteroidBelt, distance);
                             break;
                         case 'M':
-                            updateData.MountainDistance = incomingObstacleUpdate[++messageCounter];
+                            updateData.MountainDistance = distance;//getLookupTableValue(obstacleTimingLookupTable, Mountain, distance);
                             break;
                         case 'S':
-                            updateData.StarDistance = incomingObstacleUpdate[++messageCounter];
+                            updateData.StarDistance = distance;//getLookupTableValue(obstacleTimingLookupTable, ShootingStar, distance);
                             break;
                         case 'B':
-                            updateData.BlackHoleDistance = incomingObstacleUpdate[++messageCounter];
+                            updateData.BlackHoleDistance = distance;//getLookupTableValue(obstacleTimingLookupTable, BlackHole, distance);
                             break;
                         case 'E':
-                            updateData.ExplodingSunDistance = incomingObstacleUpdate[++messageCounter];
+                            updateData.ExplodingSunDistance = distance;//getLookupTableValue(obstacleTimingLookupTable, ExplodingSun, distance);
                             break;
                         default:
                             break;
@@ -468,23 +475,30 @@ void addObstaclesToStateMachine(){
     for(int i =0; i < 6;i++){
         printf("Obstacle %i Distance: %i\n", i, updateData.values[i]);
     }
-    if(updateData.AstroidDistance != NA){
+
+    printf(" Asteroid: %i\n", updateData.AstroidDistance);
+    printf(" BlackHole: %i\n", updateData.BlackHoleDistance);
+    printf(" ExplodingSun: %i\n", updateData.ExplodingSunDistance);
+    printf(" Mountain: %i\n", updateData.MountainDistance);
+    printf(" Star: %i\n", updateData.StarDistance);
+
+    if(updateData.AstroidDistance >= 0){
         printf("Adding Asteroid: %i\n", updateData.AstroidDistance);
         ObstacleHolder_Add_Obstacle(AsteroidBelt, updateData.AstroidDistance);
     }
-    if(updateData.BlackHoleDistance != NA){
+    if(updateData.BlackHoleDistance >= 0){
         printf("Adding BlackHole: %i\n", updateData.BlackHoleDistance);
         ObstacleHolder_Add_Obstacle(BlackHole, updateData.BlackHoleDistance);
     }
-    if(updateData.ExplodingSunDistance != NA){
+    if(updateData.ExplodingSunDistance >= 0){
         printf("Adding ExplodingSun: %i\n", updateData.ExplodingSunDistance);
         ObstacleHolder_Add_Obstacle(ExplodingSun, updateData.ExplodingSunDistance);
     }
-    if(updateData.MountainDistance != NA){
+    if(updateData.MountainDistance >= 0){
         printf("Adding Mountain: %i\n", updateData.MountainDistance);
         ObstacleHolder_Add_Obstacle(Mountain, updateData.MountainDistance);
     }
-    if(updateData.StarDistance != NA){
+    if(updateData.StarDistance >= 0){
         printf("Adding Star: %i\n", updateData.StarDistance);
         ObstacleHolder_Add_Obstacle(ShootingStar, updateData.StarDistance);
     }
