@@ -48,6 +48,8 @@
 #define SEMAPHORE_MAX 1
 #define SEMAPHORE_INIT 1
 
+#define ONE_CYCLE 1
+
 static QUEUING_PORT_ID_TYPE fConfigRequestQueuingPort;
 static QUEUING_PORT_ID_TYPE fConfigResponseQueuingPort;
 static QUEUING_PORT_ID_TYPE fResponseQueuingSender;
@@ -60,6 +62,8 @@ int obstacleTimingLookupTable[NUMOBSTACLETYPES][MAXDISTANCE];
 PROCESS_ID_TYPE receiveThreadID;
 PROCESS_ID_TYPE executeThreadID;
 EVENT_ID_TYPE execEventID;
+EVENT_ID_TYPE sendFuelResponseID;
+bool fuelResponseRequested;
 SEMAPHORE_ID_TYPE configDataSemaphore;
 Drone student;
 IncomingUpdate updateData;
@@ -268,20 +272,22 @@ void executeThread()
         getPositionString();
         int length = strlen(positionString);
 
+        /////
+        /////
+        //sendStateData();
+
+        if (updateData.FuelRequest == TRUE)
+        {
+
+            setDroneFuel(&student, floorf((1000.0f - ((float)updateData.CycleCounter * student.fuelRate)) * 10.0f) / 10.0f);
+            sendFuelData();
+        }
         SEND_QUEUING_MESSAGE(
             fResponseQueuingSender,
             (MESSAGE_ADDR_TYPE) positionString,
             length + 1,
             0,
             &lReturnCode );
-        /////
-        /////
-        if (updateData.FuelRequest == TRUE)
-        {
-            setDroneFuel(&student, floorf((1000.0f - ((float)updateData.CycleCounter * student.fuelRate)) * 10.0f) / 10.0f);
-            sendFuelData();
-        }
-        sendStateData();
 
         SIGNAL_SEMAPHORE(configDataSemaphore, &lReturnCode);
         if ( lReturnCode != NO_ERROR )
@@ -329,22 +335,27 @@ void receiveThread()
                 else
                 {
                     /* Parse the first letter and grab the associated distance */
+                    printf("Message Output:\n");
+                    printf("%c\n", incomingObstacleUpdate[messageCounter]);
+                    printf("%c\n", incomingObstacleUpdate[messageCounter +1]);
+
                     switch (incomingObstacleUpdate[messageCounter])
                     {
                         case 'A':
-                            updateData.AstroidDistance = incomingObstacleUpdate[++messageCounter];
+                            printf("Asteroid Test: %i\n", (int) incomingObstacleUpdate[messageCounter + 1]);
+                            updateData.AstroidDistance = (int) incomingObstacleUpdate[++messageCounter] - '0';
                             break;
                         case 'M':
-                            updateData.MountainDistance = incomingObstacleUpdate[++messageCounter];
+                            updateData.MountainDistance = (int) incomingObstacleUpdate[++messageCounter] - '0';
                             break;
                         case 'S':
-                            updateData.StarDistance = incomingObstacleUpdate[++messageCounter];
+                            updateData.StarDistance = (int) incomingObstacleUpdate[++messageCounter] - '0';
                             break;
                         case 'B':
-                            updateData.BlackHoleDistance = incomingObstacleUpdate[++messageCounter];
+                            updateData.BlackHoleDistance = (int) incomingObstacleUpdate[++messageCounter] - '0';
                             break;
                         case 'E':
-                            updateData.ExplodingSunDistance = incomingObstacleUpdate[++messageCounter];
+                            updateData.ExplodingSunDistance = (int)incomingObstacleUpdate[++messageCounter] - '0';
                             break;
                         default:
                             break;
@@ -541,20 +552,33 @@ RETURN_CODE_TYPE initalizePorts()
 
 
 void addObstaclesToStateMachine(){
-    if(updateData.AstroidDistance != NA){
-        ObstacleHolder_Add_Obstacle(AsteroidBelt, updateData.AstroidDistance);
+
+    printf("........................................................");
+    printf("\nPrinting contents of update data:\n");
+    for(int i=1; i < 6; i++){
+        printf("%i:%i\n", i, updateData.values[i]);
     }
-    if(updateData.BlackHoleDistance != NA){
-        ObstacleHolder_Add_Obstacle(BlackHole, updateData.BlackHoleDistance);
+    printf("\n");
+
+    if(updateData.AstroidDistance >= 0){
+        int distance = getLookupTableValue(obstacleTimingLookupTable, AsteroidBelt, updateData.AstroidDistance);
+        ObstacleHolder_Add_Obstacle(AsteroidBelt, distance);
     }
-    if(updateData.ExplodingSunDistance != NA){
-        ObstacleHolder_Add_Obstacle(ExplodingSun, updateData.ExplodingSunDistance);
+    if(updateData.BlackHoleDistance >= 0){
+        int distance = getLookupTableValue(obstacleTimingLookupTable, BlackHole, updateData.BlackHoleDistance);
+        ObstacleHolder_Add_Obstacle(BlackHole, distance);
     }
-    if(updateData.MountainDistance != NA){
-        ObstacleHolder_Add_Obstacle(Mountain, updateData.MountainDistance);
+    if(updateData.ExplodingSunDistance >= 0){
+        int distance = getLookupTableValue(obstacleTimingLookupTable, ExplodingSun, updateData.ExplodingSunDistance);
+        ObstacleHolder_Add_Obstacle(ExplodingSun, distance);
     }
-    if(updateData.StarDistance != NA){
-        ObstacleHolder_Add_Obstacle(ShootingStar, updateData.StarDistance);
+    if(updateData.MountainDistance >=0){
+        int distance = getLookupTableValue(obstacleTimingLookupTable, Mountain, updateData.MountainDistance);
+        ObstacleHolder_Add_Obstacle(Mountain, distance);
+    }
+    if(updateData.StarDistance >= 0){
+        int distance = getLookupTableValue(obstacleTimingLookupTable, ShootingStar, updateData.StarDistance);
+        ObstacleHolder_Add_Obstacle(ShootingStar, distance);
     }
 
 }

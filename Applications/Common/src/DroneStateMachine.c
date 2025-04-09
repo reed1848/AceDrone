@@ -43,7 +43,7 @@ void DroneStateMachine_Avoid_Obstacle(DroneState *sm, Obstacle obstacles[MAX_OBS
                 vm = (vm == MOVE_UP)? NO_VERTICAL: MOVE_UP;
                 break;
             case ShootingStar:
-                vm = (vm == MOVE_UP)? NO_VERTICAL: MOVE_UP;
+                vm = (vm == MOVE_DOWN)? NO_VERTICAL: MOVE_DOWN;
                 break;
             case BlackHole:
                 hm = (hm == MOVE_LEFT)? NO_HORIZONTAL: MOVE_RIGHT;

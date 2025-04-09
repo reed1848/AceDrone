@@ -41,7 +41,6 @@ void ObstacleHolder_Update_Obstacle_Times(int deltaTime){
     int numObstaclesToDodge = 0;
 
     for (int i = 0; i < obstacleHolder->count; i++) {
-        obstacleHolder->obstacles[i].timeToImpact -= deltaTime;
         if (obstacleHolder->obstacles[i].timeToImpact <= 0) {
             // Handle obstacle impact
             obstaclesToDodge[numObstaclesToDodge] = obstacleHolder->obstacles[i].obstacle;
@@ -55,6 +54,8 @@ void ObstacleHolder_Update_Obstacle_Times(int deltaTime){
             obstacleHolder->count--;
             i--; // Adjust index to account for the removed obstacle
         }
+        obstacleHolder->obstacles[i].timeToImpact -= deltaTime;
+
     }
 
     printf("%i obstacles to Dodge:\n", numObstaclesToDodge);
@@ -63,7 +64,7 @@ void ObstacleHolder_Update_Obstacle_Times(int deltaTime){
     }
     DroneStateMachine_Avoid_Obstacle(droneState, obstaclesToDodge, numObstaclesToDodge);
     printf("Position: is %i\n", droneState->position);
-    printf("Position: is %s\n", PositionStateStrings[ droneState->position ]);
+    printf("Position: is %s\n\n\n", PositionStateStrings[ droneState->position ]);
 }
 
 void ObstacleHolder_Get_Position_Str(char *positionString){
@@ -81,6 +82,7 @@ bool ObstacleHolder_Add_Obstacle(Obstacle newObstacle, int time) {
     obstacleHolder->obstacles[obstacleHolder->count].obstacle = newObstacle;
     obstacleHolder->obstacles[obstacleHolder->count].timeToImpact = time;
     obstacleHolder->count++;
+    printf("Added %s: %i\n", ObstacleStrings[newObstacle], time);
     return true;
 }
 
