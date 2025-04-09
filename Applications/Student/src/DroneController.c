@@ -37,7 +37,7 @@
 #include "../../Common/include/ObstacleHandler.h"
 #include "../../Common/include/DroneStateMachine.h"
 
-#define RECEIVE_PROCESS_PERIOD  500000000LL
+#define RECEIVE_PROCESS_PERIOD  100000000LL
 #define INFINITE_TIME -1
 #define PROCESS_STACK_SIZE 8000
 #define NA -1
