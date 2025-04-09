@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "Parameters.h"
-#include "LookupTable.h"
+#include "../include/Parameters.h"
+#include "../include/LookupTable.h"
 
 // Populates lookup table with obstacle times per drone configuration
 void setLookupTable( Drone *drone, int table[NUMOBSTACLETYPES][MAXDISTANCE] )

@@ -26,8 +26,8 @@
 
   <Module_Schedule>
     <Partition_Schedule ScheduleIdentifier="0">
-      <Window_Schedule PartitionName="Grader" PeriodDurationSeconds="0.5" PartitionPeriodStart="1"/>
-      <Window_Schedule PartitionName="Student" PeriodDurationSeconds="0.5" PartitionPeriodStart="1"/>
+      <Window_Schedule PartitionName="Grader" PeriodDurationSeconds="0.005" PartitionPeriodStart="1"/>
+      <Window_Schedule PartitionName="Student" PeriodDurationSeconds="0.01" PartitionPeriodStart="1"/>
     </Partition_Schedule>
   </Module_Schedule>
 
@@ -39,6 +39,29 @@
     <Channel ChannelIdentifier="2">
       <Source PartitionName="Student" PortName="ConfigResponseQueuingSender"/>
       <Destination PartitionName="Grader" PortName="ConfigResponseQueuingReceiver"/>
+    </Channel>
+
+    <Channel ChannelIdentifier="3">
+      <Source PartitionName="Grader" PortName="CommandQueuingSender"/>
+      <Destination PartitionName="Student" PortName="CommandQueuingReceiver"/>
+    </Channel>
+    <Channel ChannelIdentifier="4">
+      <Source PartitionName="Student" PortName="ResponseQueuingSender"/>
+      <Destination PartitionName="Grader" PortName="ResponseQueuingReceiver"/>
+    </Channel>
+
+    <Channel ChannelIdentifier="5">
+      <Source PartitionName="Grader" PortName="IDRequestQueuingSender"/>
+      <Destination PartitionName="Student" PortName="IDRequestQueuingReceiver"/>
+    </Channel>
+    <Channel ChannelIdentifier="6">
+      <Source PartitionName="Student" PortName="IDResponseQueuingSender"/>
+      <Destination PartitionName="Grader" PortName="IDResponseQueuingReceiver"/>
+    </Channel>
+
+    <Channel ChannelIdentifier="7">
+      <Source PartitionName="Student" PortName="HeartbeatQueuingSender"/>
+      <Destination PartitionName="Grader" PortName="HeartbeatQueuingReceiver"/>
     </Channel>
   </Connection_Table>
 

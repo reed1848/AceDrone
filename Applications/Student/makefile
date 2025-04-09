@@ -62,6 +62,8 @@ SOURCE=src/DroneController.c \
 	   ../Common/src/usrAppInit.c \
 		 ../Common/src/LookupTable.c \
 		 ../Common/src/Parameters.c \
+		../Common/src/ObstacleHandler.c \
+		../Common/src/DroneStateMachine.c \
        $(MAIN_SOURCE) \
 
 

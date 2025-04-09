@@ -51,6 +51,9 @@ extern const char *configIds[];
 #define MAX_DRONE_NAMES 5
 extern const char *droneIds[];
 
+#define MAX_DRONE_STATES 9
+extern const char *droneStates[];
+
 /* Conversion Factors */
 /* miles/sec per miles/hour */
 #define MPS_PER_MPH 0.000278
@@ -108,6 +111,7 @@ typedef struct
     float   c1;
     float   c2;
     float obstacleRates[MAX_OBSTACLE_RATES];
+    char* state;
 } Drone;
 
 void setConfigParameters( Drone *drone, char configCommands[MAX_INPUTS][MAXCONFIGPARAMLENGTH], int numOfCommands );
@@ -123,6 +127,10 @@ void setDroneFuelRate( Drone *drone );
 void setDroneC1( Drone *drone, float c1 );
 void setDroneC2( Drone *drone, float c2 );
 void setDroneObstacleRate( Drone *drone, float rate, int index );
+void setDroneState(Drone *drone, char *state );
 char * parameterToString( Drone *drone, int table[NUMOBSTACLETYPES][MAXDISTANCE], int index );
+char * fuelToString( Drone *drone, int table[NUMOBSTACLETYPES][MAXDISTANCE]);
+char * stateToString( Drone *drone, int table[NUMOBSTACLETYPES][MAXDISTANCE]);
+void allocateBuffers();
 
 #endif
