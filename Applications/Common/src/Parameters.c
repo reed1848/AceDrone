@@ -6,6 +6,9 @@
 #include "../include/Parameters.h"
 #include "../include/LookupTable.h"
 
+char *fuelResponseBuffer = NULL;
+char *stateResponseBuffer = NULL;
+
 // Config ID parameters
 const char * configIds[] = { "Start"
                             ,"ID"
@@ -31,6 +34,17 @@ const char * droneIds[] = { "Columbia"
                            ,"Discovery"
                            ,"Atlantis"
                            ,"Endeavour" };
+
+// Valid drone states
+const char * droneStates[] = { "TopLeft"
+    ,"TopCenter"
+    ,"TopRight"
+    ,"MiddleLeft"
+    ,"MiddleCenter"
+    ,"MiddleRight"
+    ,"BottomLeft" 
+    ,"BottomCenter"
+    ,"BottomRight"};
 
 /*
  *  Identifies the provided config ID.
@@ -231,6 +245,25 @@ void setDroneFuelRate( Drone *drone )
 }
 
 /*
+ *  Sets the drone state parameter.
+ *  If a valid state is not provided,
+ *  the state is set to TopLeft.
+*/
+void setDroneState( Drone *drone, char *state )
+{
+    drone->state = "TopLeft";
+
+    int i;
+    for( i=0; i<MAX_DRONE_STATES; i++)
+    {
+        if( strcmp( state, droneStates[i] ) == 0 )
+        {
+            drone->state = state;
+        }
+    }
+}
+
+/*
  *  Validates and identifies each config command.
  *  If the config command is valid, the function
  *  sets the appropriate drone parameter.
@@ -386,4 +419,27 @@ char * parameterToString( Drone *drone, int table[NUMOBSTACLETYPES][MAXDISTANCE]
             break;
     }
     return message;
+}
+
+char * fuelToString( Drone *drone, int table[NUMOBSTACLETYPES][MAXDISTANCE]){
+    sprintf( fuelResponseBuffer, "Fuel: %.1f", drone->fuel );
+    return fuelResponseBuffer;
+}
+
+char * stateToString( Drone *drone, int table[NUMOBSTACLETYPES][MAXDISTANCE]){
+    sprintf( stateResponseBuffer, "%s", drone->state );
+    return stateResponseBuffer;
+}
+
+void allocateBuffers()
+{
+    fuelResponseBuffer = (char *)malloc(40);
+    if (fuelResponseBuffer == NULL){
+        printf("Memory allocation faield for fuelResponseBuffer\n");
+    }
+
+    stateResponseBuffer = (char *)malloc(40);
+    if (stateResponseBuffer == NULL){
+        printf("Memory allocation faield for fuelResponseBuffer\n");
+    }
 }

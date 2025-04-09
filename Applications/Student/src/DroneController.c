@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
+#include <math.h>
 
 #include <apexType.h>
 #include <apexProcess.h>
@@ -37,19 +39,19 @@
 #include "../../Common/include/ObstacleHandler.h"
 #include "../../Common/include/DroneStateMachine.h"
 
-#define RECEIVE_PROCESS_PERIOD  500000000LL
+#define RECEIVE_PROCESS_PERIOD 500000000LL
 #define INFINITE_TIME -1
+//#define RECEIVE_PROCESS_CAPACITY -1LL
 #define PROCESS_STACK_SIZE 8000
 #define NA -1
 #define MAX_UPDATE_STRING_SIZE 35
 #define SEMAPHORE_MAX 1
 #define SEMAPHORE_INIT 1
-#define ONE_CYCLE 1
 
 static QUEUING_PORT_ID_TYPE fConfigRequestQueuingPort;
 static QUEUING_PORT_ID_TYPE fConfigResponseQueuingPort;
-static QUEUING_PORT_ID_TYPE fCommandQueuingReceiver;
 static QUEUING_PORT_ID_TYPE fResponseQueuingSender;
+static QUEUING_PORT_ID_TYPE fCommandQueuingReceiver;
 
 int numOfConfigCommands = 0;
 char configCommands[MAX_INPUTS][MAXCONFIGPARAMLENGTH];
@@ -62,6 +64,9 @@ SEMAPHORE_ID_TYPE configDataSemaphore;
 Drone student;
 IncomingUpdate updateData;
 BOOL shutdownFlag = FALSE;
+clock_t startTime;
+double cycles = 0;
+//char *fuelResponseBuffer = NULL;
 
 char positionString[MAX_POSITION_STATE_LENGTH];
 
@@ -113,6 +118,9 @@ void droneController_main( void )
     {
         printf( "Failed to enter normal mode %s", toImage( lReturnCode ) );
     }
+    startTime = clock();
+
+
     return;
 }
 
@@ -121,6 +129,8 @@ void initProcesses()
 
     //init statemachine
     ObstacleHolder_Init();
+    allocateBuffers();
+    setDroneState(&student, "BottomCenter");
 
     RETURN_CODE_TYPE lReturnCode;
     // Create receive thread
@@ -129,9 +139,9 @@ void initProcesses()
         "RECEIVE_THREAD",               /* Name          */
         receiveThread,                  /* Entry point   */
         PROCESS_STACK_SIZE,             /* Stack size    */
-        1,                              /* Priority      */
+        1,                             /* Priority      */
         RECEIVE_PROCESS_PERIOD,         /* Period        */
-        INFINITE_TIME,                  /* Time capacity */
+        INFINITE_TIME,     /* Time capacity */
         SOFT                            /* Deadline type */ 
     };
 
@@ -153,7 +163,6 @@ void initProcesses()
         printf( "Failed to start process: %s \n", toImage( lReturnCode ) );
         return;
     }
-
     // Set up execute thread
     PROCESS_ATTRIBUTE_TYPE execThreadAttr = 
     {
@@ -266,6 +275,13 @@ void executeThread()
             0,
             &lReturnCode );
         /////
+        /////
+        if (updateData.FuelRequest == TRUE)
+        {
+            setDroneFuel(&student, floorf((1000.0f - ((float)updateData.CycleCounter * student.fuelRate)) * 10.0f) / 10.0f);
+            sendFuelData();
+        }
+        sendStateData();
 
         SIGNAL_SEMAPHORE(configDataSemaphore, &lReturnCode);
         if ( lReturnCode != NO_ERROR )
@@ -280,9 +296,10 @@ void executeThread()
     }
 }
 
+
 void receiveThread()
 {
-    updateData.CycleCounter = -1;
+    updateData.CycleCounter = 0;
     RETURN_CODE_TYPE retCode;
     MESSAGE_SIZE_TYPE lenMsgData = 0;
     unsigned char incomingObstacleUpdate[MAX_UPDATE_STRING_SIZE] = {};
@@ -359,7 +376,6 @@ void receiveThread()
     }
     printf("Shutdown flag activated?? ...\n");
     STOP_SELF();
-
 }
 
 void sendConfigData()
@@ -396,6 +412,67 @@ void sendConfigData()
 
     printf( "\n---------- Config Response Complete ----------\n\n" );
 }
+
+void sendFuelData()
+{
+    RETURN_CODE_TYPE lReturnCode;
+    char *message;
+
+    printf( "---------- Starting Fuel Response ----------\n\n" );
+    // set message for fuel response
+    message = fuelToString(&student, obstacleTimingLookupTable);
+
+    //Send fuel response message
+    SEND_QUEUING_MESSAGE(
+        fResponseQueuingSender,
+        (MESSAGE_ADDR_TYPE) message,
+        strlen( message ) + 1,
+        0,
+        &lReturnCode );
+
+    // Verify config response sent sucessfully
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to send fuel response message: %s\n", toImage( lReturnCode ) );
+    }
+    else
+    {
+        printf( "Sending: %s\n", message );
+    }
+    
+    printf( "\n---------- Fuel Response Complete ----------\n\n" );
+}
+
+void sendStateData()
+{
+    RETURN_CODE_TYPE lReturnCode;
+    char *message;
+
+    printf( "---------- Starting State Response ----------\n\n" );
+    // set message for State response
+    message = stateToString(&student, obstacleTimingLookupTable);
+
+    //Send fuel response message
+    SEND_QUEUING_MESSAGE(
+        fResponseQueuingSender,
+        (MESSAGE_ADDR_TYPE) message,
+        strlen( message ) + 1,
+        0,
+        &lReturnCode );
+
+    // Verify config response sent sucessfully
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to send state response message: %s\n", toImage( lReturnCode ) );
+    }
+    else
+    {
+        printf( "Sending: %s\n", message );
+    }
+    
+    printf( "\n---------- State Response Complete ----------\n\n" );
+}
+
 
 RETURN_CODE_TYPE initalizePorts()
 {

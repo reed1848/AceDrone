@@ -12,6 +12,24 @@ void incrementStateMachineCycle();
 void getPositionString();
 void addObstaclesToStateMachine();
 RETURN_CODE_TYPE initalizePorts();
+void sendFuelData();
+void sendStateData();
+
+typedef struct 
+{
+    union {
+        struct {
+            int FuelRequest;
+            int AstroidDistance;
+            int MountainDistance;
+            int StarDistance;
+            int BlackHoleDistance;
+            int ExplodingSunDistance;
+        };
+        int values[6]; // Array to access all integers at once
+    };
+    int CycleCounter;
+}IncomingUpdate;
 
 typedef struct 
 {
