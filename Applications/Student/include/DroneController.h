@@ -14,6 +14,10 @@ void addObstaclesToStateMachine();
 RETURN_CODE_TYPE initalizePorts();
 void sendFuelData();
 void sendStateData();
+void receiveIdRequest();
+void heartbeat();
+// void sendIdResponse();
+// void convert_word_to_string(uint16_t word, char* str);
 
 typedef struct 
 {

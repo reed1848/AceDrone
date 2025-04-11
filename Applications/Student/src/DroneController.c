@@ -39,7 +39,13 @@
 #include "../../Common/include/ObstacleHandler.h"
 #include "../../Common/include/DroneStateMachine.h"
 
-#define RECEIVE_PROCESS_PERIOD 500000000LL
+#define RECEIVE_PROCESS_PERIOD 500000000LL  // every 0.5 seconds
+#define ID_PROCESS_PERIOD 3000000000LL  //every 3 seconds
+#define HEARTBEAT_PROCESS_PERIOD 4000000000LL  //every 3 seconds
+
+#define MAX_PROCESS_TIME 250000000LL
+#define DEFAULT_PRIORITY 1
+
 #define INFINITE_TIME -1
 //#define RECEIVE_PROCESS_CAPACITY -1LL
 #define PROCESS_STACK_SIZE 8000
@@ -50,10 +56,17 @@
 
 #define ONE_CYCLE 1
 
+#define ID_REQUEST_MESSAGE 0xCABE
+#define HEARTBEAT_MESSAGE 0xF5A6
+#define MAX_ID_LENGTH 20
+
 static QUEUING_PORT_ID_TYPE fConfigRequestQueuingPort;
 static QUEUING_PORT_ID_TYPE fConfigResponseQueuingPort;
 static QUEUING_PORT_ID_TYPE fResponseQueuingSender;
 static QUEUING_PORT_ID_TYPE fCommandQueuingReceiver;
+static QUEUING_PORT_ID_TYPE fIdRequestQueuingPort;
+static QUEUING_PORT_ID_TYPE fIdResponseQueuingPort;
+static QUEUING_PORT_ID_TYPE fHeartBeatResponseQueuingPort;
 
 int numOfConfigCommands = 0;
 char configCommands[MAX_INPUTS][MAXCONFIGPARAMLENGTH];
@@ -61,6 +74,9 @@ int obstacleTimingLookupTable[NUMOBSTACLETYPES][MAXDISTANCE];
 
 PROCESS_ID_TYPE receiveThreadID;
 PROCESS_ID_TYPE executeThreadID;
+PROCESS_ID_TYPE idThreadID;
+PROCESS_ID_TYPE heartbeatThreadID;
+
 EVENT_ID_TYPE execEventID;
 EVENT_ID_TYPE sendFuelResponseID;
 bool fuelResponseRequested;
@@ -70,6 +86,11 @@ IncomingUpdate updateData;
 BOOL shutdownFlag = FALSE;
 clock_t startTime;
 double cycles = 0;
+
+char idResponse[MAX_ID_LENGTH];
+char heartbeatMessage[5];
+char sendStateFlag = true;
+
 //char *fuelResponseBuffer = NULL;
 
 char positionString[MAX_POSITION_STATE_LENGTH];
@@ -102,7 +123,7 @@ void droneController_main( void )
 
     // Receive grader's config request
     commandCount = receiveConfigData();
-    
+
     // Set configuration parameters and obstacle lookup table
     setConfigParameters( &student, configCommands, commandCount );
     setLookupTable( &student, obstacleTimingLookupTable );
@@ -137,16 +158,19 @@ void initProcesses()
     setDroneState(&student, "BottomCenter");
 
     RETURN_CODE_TYPE lReturnCode;
-    // Create receive thread
-    PROCESS_ATTRIBUTE_TYPE receiveThreadAttr = 
+
+    /*
+     * Create receive thread
+    */
+    PROCESS_ATTRIBUTE_TYPE receiveThreadAttr =
     {
         "RECEIVE_THREAD",               /* Name          */
         receiveThread,                  /* Entry point   */
         PROCESS_STACK_SIZE,             /* Stack size    */
-        1,                             /* Priority      */
+        DEFAULT_PRIORITY,                             /* Priority      */
         RECEIVE_PROCESS_PERIOD,         /* Period        */
-        INFINITE_TIME,     /* Time capacity */
-        SOFT                            /* Deadline type */ 
+        INFINITE_TIME,                  /* Time capacity */
+        SOFT                            /* Deadline type */
     };
 
     printf("Creating Receive Thread ...\n");
@@ -167,16 +191,19 @@ void initProcesses()
         printf( "Failed to start process: %s \n", toImage( lReturnCode ) );
         return;
     }
-    // Set up execute thread
-    PROCESS_ATTRIBUTE_TYPE execThreadAttr = 
+
+    /*
+     * Set up execute thread
+    */
+     PROCESS_ATTRIBUTE_TYPE execThreadAttr =
     {
         "EXEC_THREAD",                  /* Name          */
         executeThread,                  /* Entry point   */
         PROCESS_STACK_SIZE,             /* Stack size    */
-        1,                              /* Priority      */
+        DEFAULT_PRIORITY,                              /* Priority      */
         INFINITE_TIME,                  /* Period        */
         INFINITE_TIME,                  /* Time capacity */
-        SOFT                            /* Deadline type */ 
+        SOFT                            /* Deadline type */
     };
 
     printf("Creating Execute Thread ...\n");
@@ -198,6 +225,72 @@ void initProcesses()
         return;
     }
 
+
+    /*
+     *setup id request thread
+    */
+    PROCESS_ATTRIBUTE_TYPE idThreadAttr =
+    {
+        "ID_THREAD",                  /* Name          */
+        receiveIdRequest,                  /* Entry point   */
+        PROCESS_STACK_SIZE,             /* Stack size    */
+        DEFAULT_PRIORITY,                              /* Priority      */
+        ID_PROCESS_PERIOD,                  /* Period        */
+        MAX_PROCESS_TIME,                  /* Time capacity */
+        SOFT                            /* Deadline type */
+    };
+
+    printf("Creating ID Thread ...\n");
+    CREATE_PROCESS (
+    &idThreadAttr,   /* process attribute */
+    &idThreadID, /* process Id        */
+    &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+    printf("Starting ID Thread \n");
+    START(idThreadID, &lReturnCode);
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to start process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+
+    /*
+     * setup heartbeat message thread
+     */
+    PROCESS_ATTRIBUTE_TYPE heartbeatThreadAttr =
+    {
+        "HEARTBEAT_THREAD",                  /* Name          */
+        heartbeat,                  /* Entry point   */
+        PROCESS_STACK_SIZE,             /* Stack size    */
+        DEFAULT_PRIORITY,                              /* Priority      */
+        HEARTBEAT_PROCESS_PERIOD,                  /* Period        */
+        MAX_PROCESS_TIME,                  /* Time capacity */
+        SOFT                            /* Deadline type */
+    };
+
+    printf("Creating Heartbeat Thread ...\n");
+    CREATE_PROCESS (
+    &heartbeatThreadAttr,   /* process attribute */
+    &heartbeatThreadID, /* process Id        */
+    &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+    printf("Starting Heartbeat Thread \n");
+    START(heartbeatThreadID, &lReturnCode);
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to start process: %s \n", toImage( lReturnCode ) );
+        return;
+    }
+
+
     // Create an event to wake up execute thread
     EVENT_NAME_TYPE eventName = "ExecuteEvent";
     CREATE_EVENT( eventName, &execEventID, &lReturnCode );
@@ -205,7 +298,7 @@ void initProcesses()
     {
         printf( "Failed to create event: %s \n", toImage( lReturnCode ) );
         return;
-    }  
+    }
 
     // CREATE a semaphore to access shared resource
     CREATE_SEMAPHORE("IncomingUpdateSemaphore", SEMAPHORE_INIT, SEMAPHORE_MAX, FIFO, &configDataSemaphore, &lReturnCode);
@@ -213,7 +306,7 @@ void initProcesses()
     {
         printf( "Failed to semaphore: %s \n", toImage( lReturnCode ) );
         return;
-    }  
+    }
 }
 
 int receiveConfigData()
@@ -233,7 +326,7 @@ int receiveConfigData()
         // Verify grader config request received correctly
         if ( lReturnCode != NO_ERROR )
         {
-            printf( "Failed to receive config request message: %s\n", toImage( lReturnCode ) );
+            //printf( "Failed to receive config request message: %s\n", toImage( lReturnCode ) );
         }
         else
         {
@@ -265,7 +358,7 @@ void executeThread()
         }
 
         // Run code here
-        printf("Running execute code here: \n");
+        //printf("Running execute code here: \n");
 
         addObstaclesToStateMachine();
         incrementStateMachineCycle();
@@ -282,13 +375,15 @@ void executeThread()
             setDroneFuel(&student, floorf((1000.0f - ((float)updateData.CycleCounter * student.fuelRate)) * 10.0f) / 10.0f);
             sendFuelData();
         }
-        SEND_QUEUING_MESSAGE(
-            fResponseQueuingSender,
-            (MESSAGE_ADDR_TYPE) positionString,
-            length + 1,
-            0,
-            &lReturnCode );
-
+        if(sendStateFlag){
+            SEND_QUEUING_MESSAGE(
+                fResponseQueuingSender,
+                (MESSAGE_ADDR_TYPE) positionString,
+                length + 1,
+                0,
+                &lReturnCode );
+        }
+        sendStateFlag = !sendStateFlag;
         SIGNAL_SEMAPHORE(configDataSemaphore, &lReturnCode);
         if ( lReturnCode != NO_ERROR )
         {
@@ -302,6 +397,114 @@ void executeThread()
     }
 }
 
+void heartbeat(){
+    RETURN_CODE_TYPE retCode;
+
+    int loopCounter = 1;
+    while(shutdownFlag != TRUE){
+        printf("Heartbeat Counter: %i\n", loopCounter++);
+        if(retCode == NO_ERROR){
+            // Log ID Request
+            //Note: since port acts as a queue, must sent bytes in reverse order
+            heartbeatMessage[1] = (char)(HEARTBEAT_MESSAGE & 0xFF);       // Lower byte
+            heartbeatMessage[0] = (char)((HEARTBEAT_MESSAGE >> 8) & 0xFF); // Upper byte
+            heartbeatMessage[2] = '\0';
+            printf("Heartbeat Message: %s\n", heartbeatMessage);
+
+            RETURN_CODE_TYPE retCode;
+            //Send config response message
+            SEND_QUEUING_MESSAGE(
+                fHeartBeatResponseQueuingPort,
+                (MESSAGE_ADDR_TYPE) heartbeatMessage,
+                strlen(heartbeatMessage) + 1,
+                0,
+                &retCode );
+        
+            // Verify config response sent sucessfully
+            if ( retCode != NO_ERROR )
+            {
+                printf( "Failed to send Heartbeat message: %s\n", toImage( retCode ) );
+            }
+            else
+            {
+                printf( "Sent Heartbeat Message: %s\n", heartbeatMessage );
+            }
+        
+
+            printf("Sent HeartBeat Response\n");
+
+        }
+        PERIODIC_WAIT(&retCode);
+    }
+}
+
+void receiveIdRequest(){
+    RETURN_CODE_TYPE retCode;
+    MESSAGE_SIZE_TYPE lenMsgData = 0;
+    unsigned char incomingIdRequest[MAX_UPDATE_STRING_SIZE] = {};
+
+    int loopCounter = 1;
+    while(shutdownFlag != TRUE){
+        printf("Receive ID Loop %i\n", loopCounter++);
+        retCode = recvQueuingMsg(fIdRequestQueuingPort, incomingIdRequest, &lenMsgData);
+        if(retCode == NO_ERROR && lenMsgData > 0){
+            // Log ID Request
+            printf("\nReceived ID Request\n");
+            sprintf(idResponse, "%s", student.id);                // Null-terminate the string
+            printf("Converted ID: %s\n", idResponse);
+
+            RETURN_CODE_TYPE retCode;
+            //Send config response message
+            SEND_QUEUING_MESSAGE(
+                fIdResponseQueuingPort,
+                (MESSAGE_ADDR_TYPE) idResponse,
+                strlen(idResponse) + 1,
+                0,
+                &retCode );
+        
+            // Verify config response sent sucessfully
+            if ( retCode != NO_ERROR )
+            {
+                printf( "Failed to send ID response message: %s\n", toImage( retCode ) );
+            }
+            else
+            {
+                printf( "Sent ID Response: %s\n", idResponse );
+            }
+        
+
+            printf("Sent ID Response\n");
+
+        }
+        PERIODIC_WAIT(&retCode);
+    }
+}
+
+// void sendIdResponse(){
+//     RETURN_CODE_TYPE retCode;
+//     //convert_word_to_string(ID_RESPONSE_MESSAGE, idResponse);
+//     //Send config response message
+//     SEND_QUEUING_MESSAGE(
+//         fIdResponseQueuingPort,
+//         (MESSAGE_ADDR_TYPE) idResponse,
+//         strlen(idResponse) + 1,
+//         0,
+//         &retCode );
+
+//     // Verify config response sent sucessfully
+//     if ( retCode != NO_ERROR )
+//     {
+//         printf( "Failed to send ID response message: %s\n", toImage( retCode ) );
+//     }
+//     else
+//     {
+//         printf( "Sending ID Response: %s\n", idResponse );
+//     }
+// }
+
+// void convert_word_to_string(uint16_t word, char* str) {
+    
+// }
 
 void receiveThread()
 {
@@ -317,7 +520,7 @@ void receiveThread()
         retCode = recvQueuingMsg(fCommandQueuingReceiver, incomingObstacleUpdate, &lenMsgData);
         if (retCode == NO_ERROR)
         {
-            printf("in decoding string %d with value %s \n", updateData.CycleCounter, incomingObstacleUpdate);
+            //printf("in decoding string %d with value %s \n", updateData.CycleCounter, incomingObstacleUpdate);
             WAIT_SEMAPHORE(configDataSemaphore, INFINITE_TIME, &retCode);
             if ( retCode != NO_ERROR )
             {
@@ -335,14 +538,14 @@ void receiveThread()
                 else
                 {
                     /* Parse the first letter and grab the associated distance */
-                    printf("Message Output:\n");
-                    printf("%c\n", incomingObstacleUpdate[messageCounter]);
-                    printf("%c\n", incomingObstacleUpdate[messageCounter +1]);
+                    //printf("Message Output:\n");
+                    //printf("%c\n", incomingObstacleUpdate[messageCounter]);
+                    //printf("%c\n", incomingObstacleUpdate[messageCounter +1]);
 
                     switch (incomingObstacleUpdate[messageCounter])
                     {
                         case 'A':
-                            printf("Asteroid Test: %i\n", (int) incomingObstacleUpdate[messageCounter + 1]);
+                            //printf("Asteroid Test: %i\n", (int) incomingObstacleUpdate[messageCounter + 1]);
                             updateData.AstroidDistance = (int) incomingObstacleUpdate[++messageCounter] - '0';
                             break;
                         case 'M':
@@ -376,8 +579,8 @@ void receiveThread()
                 printf( "Failed to set event: %s \n", toImage( retCode ) );
             }
 
-            
-            
+
+
         }
 
         /************************************/
@@ -450,7 +653,7 @@ void sendFuelData()
     {
         printf( "Sending: %s\n", message );
     }
-    
+
     printf( "\n---------- Fuel Response Complete ----------\n\n" );
 }
 
@@ -480,7 +683,7 @@ void sendStateData()
     {
         printf( "Sending: %s\n", message );
     }
-    
+
     printf( "\n---------- State Response Complete ----------\n\n" );
 }
 
@@ -518,7 +721,7 @@ RETURN_CODE_TYPE initalizePorts()
         }
     }
 
-    
+
     CREATE_QUEUING_PORT( "CommandQueuingReceiver"
         , 64
         , 4
@@ -546,6 +749,44 @@ RETURN_CODE_TYPE initalizePorts()
     }
     }
 
+
+    CREATE_QUEUING_PORT( "IDRequestQueuingReceiver"
+        , 64
+        , 4
+        , DESTINATION
+        , PRIORITY
+        , &fIdRequestQueuingPort
+        , &lReturnCode );
+
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create IDRequestQueuingReceiver port: %s", toImage( lReturnCode ) );
+    }
+    else
+    {
+        CREATE_QUEUING_PORT( "IDResponseQueuingSender"
+                    , 32
+                    , 4
+                    , SOURCE
+                    , PRIORITY
+                    , &fIdResponseQueuingPort
+                    , &lReturnCode );
+    if ( lReturnCode != NO_ERROR )
+    {
+        printf( "Failed to create IDResponseQueuingSender port: %s", toImage( lReturnCode ) );
+    }
+    }
+
+    //Create HeartBeat Port
+    CREATE_QUEUING_PORT( "HeartbeatQueuingSender"
+                , 32
+                , 4
+                , SOURCE
+                , PRIORITY
+                , &fHeartBeatResponseQueuingPort
+                , &lReturnCode );
+
+
     printf( "--------------- Finished Ports ---------------\n\n" );
     return lReturnCode;
 }
@@ -554,11 +795,11 @@ RETURN_CODE_TYPE initalizePorts()
 void addObstaclesToStateMachine(){
 
     printf("........................................................");
-    printf("\nPrinting contents of update data:\n");
+    //printf("\nPrinting contents of update data:\n");
     for(int i=1; i < 6; i++){
-        printf("%i:%i\n", i, updateData.values[i]);
+        //printf("%i:%i\n", i, updateData.values[i]);
     }
-    printf("\n");
+    //printf("\n");
 
     if(updateData.AstroidDistance >= 0){
         int distance = getLookupTableValue(obstacleTimingLookupTable, AsteroidBelt, updateData.AstroidDistance);

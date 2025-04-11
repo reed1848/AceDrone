@@ -3,17 +3,30 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "../include/DroneStateMachine.h"
-static const char* PositionStateStrings[] = {
-    "TopLeft",
-    "TopCenter",
-    "TopRight",
-    "MiddleLeft",
-    "MiddleCenter",
-    "MiddleRight",
-    "BottomLeft",
-    "BottomCenter",
-    "BottomRight"
-};
+// static const char* PositionStateStrings[] = {
+//     "TopLeft",
+//     "TopCenter",
+//     "TopRight",
+//     "MiddleLeft",
+//     "MiddleCenter",
+//     "MiddleRight",
+//     "BottomLeft",
+//     "BottomCenter",
+//     "BottomRight"
+// };
+
+//Note: this struct was added so if 2 or more of the same obstacle is being encountered
+//      it doesnt dodge it twice.
+//      this is for the edge case if there are for example two mountains and one shooting star
+//      it was found to be desired to stay still instead of dodging up
+typedef struct {
+    bool AsteroidBelt;
+    bool Mountain;
+    bool ShootingStar;
+    bool BlackHole;
+    bool ExplodingSun;
+
+} HasEncountered;
 
 static PositionState move_drone(PositionState initPos, HorizontalMovement hm, VerticalMovement vm, bool isDodging);
 
@@ -28,7 +41,9 @@ void DroneStateMachine_Avoid_Obstacle(DroneState *sm, Obstacle obstacles[MAX_OBS
     HorizontalMovement hm = NO_HORIZONTAL;
     VerticalMovement vm = NO_VERTICAL;
     bool isDodging = false;
-    printf("Start Position Drone: %s\n", PositionStateStrings[initPos]);
+
+    HasEncountered hasEncountered = {false, false, false, false, false};
+    //printf("Start Position Drone: %s\n", PositionStateStrings[initPos]);
 
     //iterate through array and determine vertical and horizontal movement
     // to dodge obstacle
@@ -36,20 +51,39 @@ void DroneStateMachine_Avoid_Obstacle(DroneState *sm, Obstacle obstacles[MAX_OBS
         Obstacle obstacle = obstacles[i];
         switch(obstacle){
             case AsteroidBelt:
-                hm = NO_HORIZONTAL;
-                vm = NO_VERTICAL;
+                if(!hasEncountered.AsteroidBelt){
+                    hm = NO_HORIZONTAL;
+                    vm = NO_VERTICAL;
+
+                    hasEncountered.AsteroidBelt = true;
+                }
                 break;
             case Mountain:
-                vm = (vm == MOVE_UP)? NO_VERTICAL: MOVE_UP;
+                if(!hasEncountered.Mountain){
+                    vm = (vm == MOVE_DOWN)? NO_VERTICAL: MOVE_UP;
+                    hasEncountered.Mountain = true;
+                }
                 break;
             case ShootingStar:
-                vm = (vm == MOVE_DOWN)? NO_VERTICAL: MOVE_DOWN;
+                if(!hasEncountered.ShootingStar){
+                    vm = (vm == MOVE_UP)? NO_VERTICAL: MOVE_DOWN;
+                
+                    hasEncountered.ShootingStar = true;
+                }
                 break;
             case BlackHole:
-                hm = (hm == MOVE_LEFT)? NO_HORIZONTAL: MOVE_RIGHT;
+                if(!hasEncountered.BlackHole){
+                    hm = (hm == MOVE_LEFT)? NO_HORIZONTAL: MOVE_RIGHT;
+
+                    hasEncountered.BlackHole = true;
+                }
                 break;
             case ExplodingSun:
-                hm = (hm == MOVE_RIGHT)? NO_HORIZONTAL: MOVE_LEFT;
+                if(!hasEncountered.ExplodingSun){
+                    hm = (hm == MOVE_RIGHT)? NO_HORIZONTAL: MOVE_LEFT;
+                
+                    hasEncountered.ExplodingSun = true;
+                }
                 break;
             default:
                 printf("ERROR: Unrecognized Obstacle");
@@ -65,9 +99,9 @@ void DroneStateMachine_Avoid_Obstacle(DroneState *sm, Obstacle obstacles[MAX_OBS
     // Move drone within boundaries 
     // Avoids obstacles and moves towards center if possible
     isDodging = num_obstacles > 0;
-    printf("HM: %i, VM: %i\n", hm, vm);
+    //printf("HM: %i, VM: %i\n", hm, vm);
     sm->position = move_drone(initPos, hm, vm, isDodging);
-    printf("Moved Drone: %s\n", PositionStateStrings[sm->position]);
+    //printf("Moved Drone: %s\n", PositionStateStrings[sm->position]);
 }
 
 static PositionState move_drone(PositionState initPos, HorizontalMovement hm, VerticalMovement vm, bool isDodging){
